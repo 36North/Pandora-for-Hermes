@@ -2,8 +2,8 @@
 
 Login is email + password against pandora.com's web login endpoint. Below the
 email/password prompts the CLI shows a "No account? Sign up" line with a
-clickable hyperlink (OSC 8, plus the bare URL as a fallback) and, on a first
-login with no saved account, opens the sign-up page in the default browser.
+clickable hyperlink (OSC 8, plus the bare URL as a fallback). The browser is
+only opened when the caller asks for it (``--signup``), never on a plain login.
 
 ``capture`` and ``import-session`` are the browser fallback for when
 Pandora's PerimeterX bot protection blocks headless logins (HTTP 403):
@@ -203,15 +203,12 @@ def argparse_suppress() -> str:
 def cmd_login(args) -> int:
     saved_email = pandora_auth._secret("PANDORA_EMAIL")
     saved_password = pandora_auth._secret("PANDORA_PASSWORD")
-    first_login = not saved_email and not saved_password
 
     if getattr(args, "signup", False) and not getattr(args, "no_browser", False):
         _open_signup()
 
     print("Pandora sign-in")
     print("---------------")
-    if first_login and not getattr(args, "no_browser", False) and not getattr(args, "signup", False):
-        _open_signup()
     _print_signup_line()
 
     email = (getattr(args, "email", "") or saved_email or "").strip()
