@@ -253,13 +253,19 @@ function PandoraMenu({ ctx, state, stateError, onClose }) {
       })
     }, name)
 
+  const errorText = (() => {
+    if (!stateError) return ''
+    const raw = String(stateError.message || stateError)
+    if (/404|not found/i.test(raw)) {
+      return `Pandora is not available in this profile. Hermes runs a user plugin's backend only in the profile that installed it — install or enable Pandora here (\`hermes plugins enable pandora\`), or switch to the profile that has it.`
+    }
+    return `Pandora backend unreachable — ${raw}`
+  })()
+
   return jsxs('div', {
     children: [
-      stateError
-        ? jsx('div', {
-            className: 'pandora-error',
-            children: `Pandora backend unreachable — ${String(stateError.message || stateError)}`
-          })
+      errorText
+        ? jsx('div', { className: 'pandora-error', children: errorText })
         : null,
       jsxs('div', {
         className: 'pandora-head',
