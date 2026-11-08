@@ -525,12 +525,26 @@ class PandoraPlayer:
             self._switching = True
             try:
                 if name != "local":
-                    # Exactly one output may play: a second live stream echoes and
-                    # both ends report end-of-track, which skips Pandora twice.
+                    from .pandora_cast import _normalize, get_cast_output
+                    if (self._cast is not None and self._cast.connected
+                            and _normalize(name) == _normalize(self._cast.name)):
+                        return self.state()  # already playing there
+                    # Exactly one output may play: leaving the previous room
+                    # streaming echoes and both ends report end-of-track.
                     self._stop_local_output()
-                    from .pandora_cast import get_cast_output
+                    if self._cast is not None and self._cast.connected:
+                        try:
+                            self._cast.stop()   # stop the old device's media, not just our socket
+                        except Exception:
+                            logger.debug("stopping the previous cast device failed", exc_info=True)
+                        try:
+                            self._cast.close()
+                        except Exception:
+                            logger.debug("closing the previous cast device failed", exc_info=True)
+                        self._cast = None
                     cast = get_cast_output()
                     cast.connect(name, timeout=15.0, device_list=device_list)
+                    self._cast = cast
                     self.output = cast.name or name
                 else:
                     if self._cast is not None:

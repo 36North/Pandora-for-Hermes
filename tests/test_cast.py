@@ -109,7 +109,7 @@ def fake_chromecast(monkeypatch):
             self.listeners = getattr(self, "listeners", []) + [listener]
 
     class FakeCast:
-        def __init__(self, cast_info, zconf=None):
+        def __init__(self, cast_info, **kwargs):
             self.cast_info = cast_info
             self.media_controller = FakeMedia()
             self.volume_controller = FakeVolume()
@@ -317,6 +317,25 @@ def test_idle_before_start_is_ignored(fake_discovery, fake_chromecast, monkeypat
     assert player.track_name == "Someone Like You"
 
     player.stop()
+
+
+def test_switching_cast_devices_stops_the_previous_one(fake_discovery, fake_chromecast, monkeypatch):
+    """Casting to a second room must stop the first — the old device runs its
+    own stream and keeps playing otherwise (seen live 2026-11-08)."""
+    import pandora.pandora_player as pp
+    player = pp.PandoraPlayer()
+    player._client = FakePlayerClient()
+
+    player.set_output("Kitchen Display")
+    previous = player._cast
+    calls = []
+    monkeypatch.setattr(previous, "stop", lambda: calls.append("stop"))
+    monkeypatch.setattr(previous, "close", lambda: calls.append("close"))
+
+    player.set_output("Living Room Speaker")
+
+    assert calls == ["stop", "close"]
+    assert player.output.lower() == "living room speaker"
 
 
 def test_player_replay_restarts_from_top(fake_discovery, fake_chromecast, monkeypatch):

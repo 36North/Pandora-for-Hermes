@@ -410,7 +410,7 @@ class CastOutput:
                 friendly_name=str(dev.get("name") or "Chromecast"),
                 host=str(dev["host"]),
                 port=int(dev.get("port") or 8009),
-                cast_type=None,
+                cast_type=(str(dev.get("type") or "") or None),
                 manufacturer=None,
             )
         try:
@@ -469,7 +469,7 @@ class CastOutput:
                 friendly_name=str(dev.get("name") or "Chromecast"),
                 host=str(dev["host"]),
                 port=int(dev.get("port") or 8009),
-                cast_type=None,
+                cast_type=(str(dev.get("type") or "") or None),
                 manufacturer=None,
             )
         cc = Chromecast(cast_info, zconf=getattr(browser, "zc", None) or getattr(browser, "zeroconf", None))

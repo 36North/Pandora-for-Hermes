@@ -168,7 +168,7 @@ def test_dial_connects_from_cached_info_without_discovery(monkeypatch):
     }, timeout=1.0)
 
     assert out == {"name": "Kitchen display", "model": "Google Nest Hub",
-                   "type": None, "host": "192.168.0.232", "port": 8009}
+                   "type": "cast", "host": "192.168.0.232", "port": 8009}
     assert len(seen) == 1
     assert str(seen[0][0].uuid) == "6f1c2f1e-0000-4000-8000-000000000001"
 
