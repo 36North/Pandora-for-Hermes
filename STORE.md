@@ -31,22 +31,25 @@ points at a **public GitHub repo pinned to a commit**, not at a local folder.
 
 ```yaml
 name: pandora
-repo: https://github.com/<owner>/hermes-pandora
-sha: <40-hex-commit>
+repo: https://github.com/36North/Pandora-for-Hermes
+subdir: pandora
+sha: <40-hex-commit — the pushed commit>
 description: >-
   Pandora (pandora.com) inside Hermes: play your stations on this PC or a Cast
   device, see the current artist and song in the desktop status bar, and
   left-click it for play/pause, skips, thumbs, volume, recent stations and
   output. Search an artist or song to start a station. Works on Free and Plus;
   on-demand songs, albums and playlists appear only when the account's plan
-  allows them.
-maintainer: <github-handle>
+  allows them. Local playback uses mpv, which is not bundled: `hermes pandora
+  setup` downloads a verified portable build, or the plugin fetches it on first
+  playback.
+maintainer: 36North
 tier: community
 category: tools
-docs_url: https://github.com/<owner>/hermes-pandora#readme
-version: "0.2.0"
+docs_url: https://github.com/36North/Pandora-for-Hermes#readme
+version: "0.3.0"
 title: Pandora
-image: https://raw.githubusercontent.com/<owner>/hermes-pandora/<sha>/assets/icon.png
+image: https://raw.githubusercontent.com/36North/Pandora-for-Hermes/<sha>/assets/icon.png
 screenshots: []
 readme: true
 platforms:

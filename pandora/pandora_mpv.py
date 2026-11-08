@@ -25,9 +25,10 @@ import zipfile
 from pathlib import Path
 from typing import Callable, Optional
 
-# Published alongside the plugin repo's releases once it is public. Until then
-# PANDORA_MPV_URL (or a local file:// URL) is required for the download path.
-DEFAULT_MPV_URL = ""
+# Published alongside the plugin repo's releases. The release tag is `mpv`;
+# upload vendor/mpv-portable.zip and vendor/mpv-portable.zip.sha256 there.
+DEFAULT_MPV_URL = ("https://github.com/36North/Pandora-for-Hermes/"
+                   "releases/download/mpv/mpv-portable.zip")
 
 MPV_BINARIES = ("mpv.exe", "mpv.com", "d3dcompiler_43.dll")
 MPV_DOCS = ("LICENSE-GPL-2.0.txt", "NOTICE-third-party.txt")
