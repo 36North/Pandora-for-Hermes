@@ -16,6 +16,7 @@ import logging
 import re
 import threading
 import time
+import uuid as uuidlib
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -142,6 +143,17 @@ def _device_dict(d: Any) -> dict[str, Any]:
     }
 
 
+def _as_uuid(value: Any) -> Any:
+    """pychromecast wants a UUID object; the listing carries the string form."""
+    raw = str(value or "").strip()
+    if raw:
+        try:
+            return uuidlib.UUID(raw)
+        except (ValueError, AttributeError, TypeError):
+            pass
+    return uuidlib.uuid4()
+
+
 class _DeviceBrowser:
     """One CastBrowser, started on demand and reaped once it goes unused."""
 
@@ -201,6 +213,30 @@ class _DeviceBrowser:
             if self._browser is None:
                 return
             self._maybe_stop_idle()
+
+    def zeroconf(self) -> Any:
+        """The live browser's Zeroconf instance, or None when it is not running."""
+        with self._lock:
+            return self._zc
+
+    def cast_info_for(self, dev: dict[str, Any]) -> Any:
+        """The live browser's CastInfo for ``dev`` (matched by uuid, then host)."""
+        with self._lock:
+            browser = self._browser
+            if browser is None:
+                return None
+            infos = list((getattr(browser, "devices", None) or {}).values())
+        wanted_uuid = str(dev.get("uuid") or "")
+        if wanted_uuid:
+            for info in infos:
+                if str(getattr(info, "uuid", "")) == wanted_uuid:
+                    return info
+        wanted_host = str(dev.get("host") or "")
+        if wanted_host:
+            for info in infos:
+                if str(getattr(info, "host", "")) == wanted_host:
+                    return info
+        return None
 
     def snapshot(self, settle: float = BROWSER_SETTLE_SECONDS) -> list[dict[str, Any]]:
         """Devices currently on the LAN; starts the browser when it is not running."""
@@ -326,23 +362,13 @@ class CastOutput:
                 dev = {"name": target, "model": "", "type": "",
                        "host": host, "port": port, "uuid": ""}
             else:
-                devices = device_list or discover_devices(timeout=10.0)
+                devices = (device_list or list_devices(settle=1.0)
+                           or discover_devices(timeout=5.0))
                 if not devices:
                     raise CastError(
                         "No Cast devices found on this network. Is the speaker powered on "
                         "and on the same Wi-Fi network as this PC?")
                 dev = _pick_device(devices, target)
-                if dev.get("uuid") and device_list is None:
-                    # Prefer discovering the device fresh so the group's current
-                    # port is right (group ports are ephemeral).
-                    try:
-                        fresh = discover_devices(timeout=4.0)
-                        for f in fresh:
-                            if f.get("uuid") and f["uuid"] == dev["uuid"]:
-                                dev = f
-                                break
-                    except CastError:
-                        pass
             info = self._dial(dev, timeout=timeout)
             self.name, self.model = str(info["name"]), str(info.get("model", ""))
             self.device_type = str(info.get("type", ""))
@@ -364,7 +390,63 @@ class CastOutput:
                     "host": self.host, "port": self.port}
 
     def _dial(self, dev: dict[str, Any], *, timeout: float) -> dict[str, Any]:
+        """Connect straight to the device we already know about.
+
+        mDNS is only how a device is *found*; the Cast protocol is a TCP socket
+        on the device's port. The listing already carries host/port/uuid and the
+        live browser carries the full CastInfo, so re-running discovery here only
+        added its timeout to every cast.
+        """
+        from pychromecast.models import CastInfo
+
+        started = time.time()
+        cast_info = _device_browser.cast_info_for(dev)
+        source = "browser" if cast_info is not None else "cached"
+        if cast_info is None:
+            cast_info = CastInfo(
+                services=set(),
+                uuid=_as_uuid(dev.get("uuid")),
+                model_name=str(dev.get("model") or "Chromecast"),
+                friendly_name=str(dev.get("name") or "Chromecast"),
+                host=str(dev["host"]),
+                port=int(dev.get("port") or 8009),
+                cast_type=None,
+                manufacturer=None,
+            )
+        try:
+            cc = Chromecast(cast_info, timeout=timeout, zconf=_device_browser.zeroconf())
+            self._cc = cc
+            try:
+                cc.wait(timeout=timeout)  # returns None on some versions; raises RequestTimeout on others
+            except Exception:
+                pass
+            # v14's wait() is not a reliable connection flag — poll it.
+            deadline = time.time() + max(3.0, float(timeout))
+            while time.time() < deadline and not _cc_connected(cc):
+                time.sleep(0.2)
+            if not _cc_connected(cc):
+                raise CastError(f"Could not connect to {dev['name'] or dev['host']} "
+                                f"(port {dev.get('port')}). Is it on and reachable?")
+        except Exception as exc:
+            if self._cc is not None:
+                try:
+                    _cc_close(self._cc)
+                except Exception:
+                    pass
+                self._cc = None
+            logger.warning("direct cast dial failed (%s info): %s; retrying via discovery",
+                           source, exc)
+            return self._dial_via_discovery(dev, timeout=timeout)
+        logger.info("cast dial (%s info): %.2fs", source, time.time() - started)
+        return {"name": cast_info.friendly_name or dev.get("name", ""),
+                "model": cast_info.model_name or "", "type": getattr(cast_info, "cast_type", ""),
+                "host": cast_info.host or str(dev["host"]), "port": int(cast_info.port or 8009)}
+
+    def _dial_via_discovery(self, dev: dict[str, Any], *, timeout: float) -> dict[str, Any]:
+        """Fallback: discover this host, then connect with what the scan returned."""
         from pychromecast.discovery import discover_chromecasts
+
+        started = time.time()
         cast_infos, browser = discover_chromecasts(timeout=timeout, known_hosts=[dev["host"]])
         self._browser = browser
         cast_info = None
@@ -379,10 +461,10 @@ class CastOutput:
                     cast_info = ci
                     break
         if cast_info is None:
-            from pychromecast.discovery import CastInfo
+            from pychromecast.models import CastInfo
             cast_info = CastInfo(
                 services=set(),
-                uuid=wanted_uuid,
+                uuid=_as_uuid(wanted_uuid),
                 model_name=str(dev.get("model") or "Chromecast"),
                 friendly_name=str(dev.get("name") or "Chromecast"),
                 host=str(dev["host"]),
@@ -403,6 +485,7 @@ class CastOutput:
         if not _cc_connected(cc):
             raise CastError(f"Could not connect to {dev['name'] or dev['host']} "
                             f"(port {dev.get('port')}). Is it on and reachable?")
+        logger.info("cast dial (discovery fallback): %.2fs", time.time() - started)
         return {"name": cast_info.friendly_name or dev.get("name", ""),
                 "model": cast_info.model_name or "", "type": getattr(cast_info, "cast_type", ""),
                 "host": cast_info.host or str(dev["host"]), "port": int(cast_info.port or 8009)}

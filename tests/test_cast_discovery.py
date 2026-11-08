@@ -6,6 +6,8 @@ listing scan (``/devices`` after its TTL) added another one.
 """
 import pytest
 
+import types
+
 
 def _fake_browser(calls):
     class FakeZeroconf:
@@ -133,6 +135,50 @@ def test_list_devices_starts_one_browser_and_reuses_it(monkeypatch):
     assert FakeBrowser.instances[0].stopped is False
     browser.close()
     assert closes == ["zeroconf.close"]
+
+
+def test_dial_connects_from_cached_info_without_discovery(monkeypatch):
+    """_dial must use the known host/port/uuid, not re-run mDNS discovery."""
+    from pychromecast import discovery
+
+    import pandora.pandora_cast as pc
+
+    seen = []
+
+    class FakeChromecast:
+        def __init__(self, cast_info, **kwargs):
+            seen.append((cast_info, kwargs))
+            self.media_controller = types.SimpleNamespace(register_status_listener=lambda _l: None)
+
+        def wait(self, timeout=None):
+            return None
+
+    def explode(*args, **kwargs):
+        raise AssertionError("discovery ran during _dial")
+
+    monkeypatch.setattr(pc, "Chromecast", FakeChromecast)
+    monkeypatch.setattr(pc, "_cc_connected", lambda _cc: True)
+    monkeypatch.setattr(pc, "_device_browser", pc._DeviceBrowser())
+    monkeypatch.setattr(discovery, "discover_chromecasts", explode)
+
+    out = pc.CastOutput()._dial({
+        "name": "Kitchen display", "model": "Google Nest Hub", "type": "cast",
+        "host": "192.168.0.232", "port": 8009,
+        "uuid": "6f1c2f1e-0000-4000-8000-000000000001",
+    }, timeout=1.0)
+
+    assert out == {"name": "Kitchen display", "model": "Google Nest Hub",
+                   "type": None, "host": "192.168.0.232", "port": 8009}
+    assert len(seen) == 1
+    assert str(seen[0][0].uuid) == "6f1c2f1e-0000-4000-8000-000000000001"
+
+
+def test_safe_url_hides_the_token():
+    from pandora.pandora_player import _safe_url
+
+    assert _safe_url("https://audio.pandora.com/a/b.mp3?token=secret&x=1") == \
+        "https://audio.pandora.com/a/b.mp3"
+    assert _safe_url("") == "://"
 
 
 def test_idle_browser_stops_and_the_next_listing_restarts_it(monkeypatch):

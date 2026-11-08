@@ -110,6 +110,17 @@ def _set_pipe_nonblocking(fd: int) -> None:
 
 # ── player ──────────────────────────────────────────────────────────────────
 
+def _safe_url(url: str) -> str:
+    """Scheme + host + path only: Pandora audio URLs carry short-lived tokens."""
+    try:
+        from urllib.parse import urlsplit
+
+        parts = urlsplit(str(url or ""))
+        return f"{parts.scheme}://{parts.netloc}{parts.path}"
+    except Exception:
+        return "<unprintable>"
+
+
 class PandoraPlayer:
     """Singleton playback session (module-level instance ``player``)."""
 
@@ -523,6 +534,11 @@ class PandoraPlayer:
                     self.output = cast.name or name
                 else:
                     if self._cast is not None:
+                        try:
+                            logger.info("cast state before switching to local: %s",
+                                        self._cast.status())
+                        except Exception:
+                            logger.debug("cast status before switch failed", exc_info=True)
                         self._cast_was_active = False  # the stop's IDLE is teardown, not an end
                         try:
                             self._cast.stop()
@@ -541,6 +557,8 @@ class PandoraPlayer:
                     self._play_item_audio()
                     if name == "local" and position > 0.5:
                         self.seek(position)
+                    if name == "local":
+                        self._schedule_audio_probe("switch to local")
                 except Exception as exc:
                     logger.warning("could not move playback to %r: %s", name, exc)
                     self.last_error = str(exc)
@@ -567,6 +585,26 @@ class PandoraPlayer:
             self._load_at = time.time()
             self._send(["loadfile", url, "replace"])
             self._send(["set_property", "pause", False])
+            self._schedule_audio_probe("load")
+
+    def _schedule_audio_probe(self, reason: str, delay: float = 2.0) -> None:
+        """Log what mpv actually decoded shortly after a load (diagnostics)."""
+        timer = threading.Timer(delay, self._log_local_audio, args=(reason,))
+        timer.daemon = True
+        timer.start()
+
+    def _log_local_audio(self, reason: str) -> None:
+        if self._in_cast():
+            return
+        try:
+            props = {name: self._get_property(name) for name in (
+                "audio-codec-name", "audio-params", "audio-bitrate", "audio-samplerate",
+                "audio-channels", "volume", "filename")}
+        except Exception:
+            logger.debug("audio probe failed", exc_info=True)
+            return
+        props["filename"] = _safe_url(str(props.get("filename") or ""))
+        logger.info("local audio [%s]: %s", reason, props)
 
     def _refresh_audio_url(self) -> None:
         """Audio URLs are short-lived; ask the API for a fresh one."""

@@ -55,6 +55,8 @@ def _fake_discovery(timeout=10.0, known_hosts=None):
 @pytest.fixture
 def fake_discovery(monkeypatch):
     monkeypatch.setattr("pychromecast.discovery.discover_chromecasts", _fake_discovery)
+    # connect() prefers the live browser; tests drive the one-shot scan instead.
+    monkeypatch.setattr("pandora.pandora_cast.list_devices", lambda settle=0.0: [])
 
 
 @pytest.fixture
