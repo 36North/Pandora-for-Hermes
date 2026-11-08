@@ -11,6 +11,7 @@ whitespace-insensitive).
 
 from __future__ import annotations
 
+import atexit
 import logging
 import re
 import threading
@@ -110,20 +111,136 @@ def discover_devices(timeout: float = 10.0) -> list[dict[str, Any]]:
     except Exception as exc:
         raise CastError(f"Cast discovery failed: {exc}") from exc
     try:
-        out: list[dict[str, Any]] = []
-        for d in devices:
-            out.append({
-                "name": str(d.friendly_name or d.model_name or "Chromecast"),
-                "model": str(d.model_name or ""),
-                "type": str(getattr(d, "cast_type", "") or ""),
-                "host": str(d.host or ""),
-                "port": int(d.port or 8009),
-                "uuid": str(getattr(d, "uuid", "") or ""),
-            })
+        out = [_device_dict(d) for d in devices]
         out.sort(key=lambda x: x["name"].lower())
         return out
     finally:
         _stop_browser(browser)
+
+
+# ── live device browser (persistent, idle-stopped) ──────────────────────────
+#
+# A one-shot scan holds Zeroconf open for its whole timeout and returns nothing
+# until it expires. A CastBrowser instead listens to the mDNS announcements the
+# devices already broadcast, so a listing is a dict read. It starts lazily on
+# the first listing and is stopped after BROWSER_IDLE_SECONDS without one, so an
+# idle Hermes holds no multicast socket at all.
+
+BROWSER_IDLE_SECONDS = 600.0      # drop the listener after 10 min without a listing
+BROWSER_SETTLE_SECONDS = 2.0      # first listing: collect the initial mDNS burst
+BROWSER_REAP_INTERVAL = 30.0
+
+
+def _device_dict(d: Any) -> dict[str, Any]:
+    return {
+        "name": str(d.friendly_name or d.model_name or "Chromecast"),
+        "model": str(d.model_name or ""),
+        "type": str(getattr(d, "cast_type", "") or ""),
+        "host": str(d.host or ""),
+        "port": int(d.port or 8009),
+        "uuid": str(getattr(d, "uuid", "") or ""),
+    }
+
+
+class _DeviceBrowser:
+    """One CastBrowser, started on demand and reaped once it goes unused."""
+
+    def __init__(self, *, idle_seconds: float = BROWSER_IDLE_SECONDS) -> None:
+        self._lock = threading.Lock()
+        self._idle_seconds = float(idle_seconds)
+        self._browser = None
+        self._zc = None
+        self._last_used = 0.0
+        self._reaper: Optional[threading.Thread] = None
+
+    def _start_locked(self) -> None:
+        import zeroconf
+        from pychromecast.discovery import CastBrowser, SimpleCastListener
+
+        self._zc = zeroconf.Zeroconf()
+        try:
+            self._browser = CastBrowser(SimpleCastListener(), self._zc)
+            self._browser.start_discovery()
+        except Exception:
+            self._stop_locked()  # never leave a half-started listener behind
+            raise
+        self._last_used = time.monotonic()
+        if self._reaper is None or not self._reaper.is_alive():
+            self._reaper = threading.Thread(target=self._reap, name="pandora-cast-reaper",
+                                            daemon=True)
+            self._reaper.start()
+
+    def _stop_locked(self) -> None:
+        browser, zc = self._browser, self._zc
+        self._browser = self._zc = None
+        if browser is not None:
+            try:
+                browser.stop_discovery()
+            except Exception:
+                logger.debug("browser stop_discovery failed", exc_info=True)
+        if zc is not None:
+            try:
+                zc.close()
+            except Exception:
+                logger.debug("zeroconf close failed", exc_info=True)
+
+    def _maybe_stop_idle(self, now: Optional[float] = None) -> bool:
+        """Stop the browser once it has gone ``idle_seconds`` without a listing."""
+        with self._lock:
+            if self._browser is None:
+                return False
+            if (now if now is not None else time.monotonic()) - self._last_used < self._idle_seconds:
+                return False
+            logger.info("cast browser idle for %.0fs — closing it", self._idle_seconds)
+            self._stop_locked()
+            return True
+
+    def _reap(self) -> None:
+        while True:
+            time.sleep(BROWSER_REAP_INTERVAL)
+            if self._browser is None:
+                return
+            self._maybe_stop_idle()
+
+    def snapshot(self, settle: float = BROWSER_SETTLE_SECONDS) -> list[dict[str, Any]]:
+        """Devices currently on the LAN; starts the browser when it is not running."""
+        with self._lock:
+            fresh = self._browser is None
+            if fresh:
+                self._start_locked()
+            self._last_used = time.monotonic()
+            browser = self._browser
+        if fresh and settle > 0 and browser is not None:
+            deadline = time.monotonic() + settle
+            while time.monotonic() < deadline:
+                if getattr(browser, "devices", None):
+                    break
+                time.sleep(0.05)
+        with self._lock:
+            browser = self._browser
+            if browser is None:
+                return []
+            devices = list((getattr(browser, "devices", None) or {}).values())
+        out = [_device_dict(d) for d in devices]
+        out.sort(key=lambda item: item["name"].lower())
+        return out
+
+    def close(self) -> None:
+        with self._lock:
+            self._stop_locked()
+
+
+_device_browser = _DeviceBrowser()
+atexit.register(_device_browser.close)
+
+
+def list_devices(settle: float = BROWSER_SETTLE_SECONDS) -> list[dict[str, Any]]:
+    """Cast devices on the LAN from the live browser (starts it on demand)."""
+    _require_cast()
+    try:
+        return _device_browser.snapshot(settle=settle)
+    except Exception as exc:
+        raise CastError(f"Cast discovery failed: {exc}") from exc
 
 
 def _pick_device(devices: list[dict[str, Any]], target: str) -> dict[str, Any]:

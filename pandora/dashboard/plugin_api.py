@@ -36,8 +36,6 @@ STATE_TTL_SECONDS = 1.0
 _plan_lock = threading.Lock()
 _plan_cache: dict[str, Any] = {"at": 0.0, "value": None}
 _state_cache: dict[str, Any] = {"at": 0.0, "value": None}
-_devices_cache: dict[str, Any] = {"at": 0.0, "value": None}
-DEVICES_TTL_SECONDS = 300.0
 _device_warm = {"started": False}
 
 PREMIUM_PREFIXES = {"TR": "on_demand", "AL": "on_demand", "PL": "playlists"}
@@ -383,27 +381,22 @@ def get_playlists() -> dict[str, Any]:
 
 @router.get("/devices")
 def get_devices(refresh: bool = False) -> dict[str, Any]:
-    """Cast devices on the LAN — discovery is slow, so cache it briefly."""
-    now = time.monotonic()
-    cached = _devices_cache["value"]
-    if not refresh and cached is not None and now - _devices_cache["at"] < DEVICES_TTL_SECONDS:
-        return cached
+    """Cast devices on the LAN from the live browser (started on first use)."""
     try:
-        devices = _cast_module().discover_devices(timeout=10.0)
+        devices = _cast_module().list_devices()
     except Exception as exc:
         return {"ok": False, "error": str(exc)}
-    value = {"ok": True, "output": _player().output, "devices": devices}
-    _devices_cache.update(at=now, value=value)
-    return value
+    return {"ok": True, "output": _player().output, "devices": devices}
 
 
 def _warm_device_cache() -> None:
-    """Discover Cast devices once, in the background, so the first menu open is fast."""
-    if _device_warm["started"] or _devices_cache["value"] is not None:
+    """Start the cast browser once, in the background, so the first menu open is instant."""
+    if _device_warm["started"]:
         return
     _device_warm["started"] = True
     try:
-        threading.Thread(target=get_devices, name="pandora-cast-warm", daemon=True).start()
+        threading.Thread(target=lambda: _cast_module().list_devices(settle=0.0),
+                         name="pandora-cast-warm", daemon=True).start()
     except Exception:
         logger.debug("cast warm-up thread failed", exc_info=True)
 
@@ -467,8 +460,8 @@ def post_output(body: dict[str, Any]) -> dict[str, Any]:
     if not device:
         return {"ok": False, "error": "device is required ('local' for this PC)"}
     try:
-        cached = _devices_cache["value"] or {}
-        _player().set_output(device, device_list=cached.get("devices") or None)
+        cached = _cast_module().list_devices(settle=0.0)
+        _player().set_output(device, device_list=cached or None)
         _state_cache.update(at=0.0, value=None)
         return {"ok": True, "state": _state_now(force=True)}
     except Exception as exc:
