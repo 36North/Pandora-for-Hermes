@@ -438,6 +438,10 @@ class CastOutput:
                            source, exc)
             return self._dial_via_discovery(dev, timeout=timeout)
         logger.info("cast dial (%s info): %.2fs", source, time.time() - started)
+        from .pandora_diag import write as _diag
+
+        _diag("dial", source=source, seconds=round(time.time() - started, 2),
+              device=cast_info.friendly_name, host=cast_info.host)
         return {"name": cast_info.friendly_name or dev.get("name", ""),
                 "model": cast_info.model_name or "", "type": getattr(cast_info, "cast_type", ""),
                 "host": cast_info.host or str(dev["host"]), "port": int(cast_info.port or 8009)}
@@ -486,6 +490,10 @@ class CastOutput:
             raise CastError(f"Could not connect to {dev['name'] or dev['host']} "
                             f"(port {dev.get('port')}). Is it on and reachable?")
         logger.info("cast dial (discovery fallback): %.2fs", time.time() - started)
+        from .pandora_diag import write as _diag
+
+        _diag("dial", source="discovery", seconds=round(time.time() - started, 2),
+              device=cast_info.friendly_name, host=cast_info.host)
         return {"name": cast_info.friendly_name or dev.get("name", ""),
                 "model": cast_info.model_name or "", "type": getattr(cast_info, "cast_type", ""),
                 "host": cast_info.host or str(dev["host"]), "port": int(cast_info.port or 8009)}

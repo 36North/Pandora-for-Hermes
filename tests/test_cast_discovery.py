@@ -181,6 +181,21 @@ def test_safe_url_hides_the_token():
     assert _safe_url("") == "://"
 
 
+def test_diag_writes_json_lines(monkeypatch, tmp_path):
+    import json
+
+    import pandora.pandora_diag as pd
+
+    target = tmp_path / "diag.log"
+    monkeypatch.setattr(pd, "path", lambda: target)
+    pd.write("local_audio", reason="load", bitrate=128000)
+    pd.write("dial", source="browser", seconds=1.2)
+
+    lines = [json.loads(line) for line in target.read_text(encoding="utf-8").splitlines()]
+    assert [line["event"] for line in lines] == ["local_audio", "dial"]
+    assert lines[1]["seconds"] == 1.2
+
+
 def test_idle_browser_stops_and_the_next_listing_restarts_it(monkeypatch):
     import pandora.pandora_cast as pc
 

@@ -549,8 +549,11 @@ class PandoraPlayer:
                 else:
                     if self._cast is not None:
                         try:
-                            logger.info("cast state before switching to local: %s",
-                                        self._cast.status())
+                            status = self._cast.status()
+                            logger.info("cast state before switching to local: %s", status)
+                            from .pandora_diag import write as _diag
+
+                            _diag("cast_state_before", state=status)
                         except Exception:
                             logger.debug("cast status before switch failed", exc_info=True)
                         self._cast_was_active = False  # the stop's IDLE is teardown, not an end
@@ -619,6 +622,9 @@ class PandoraPlayer:
             return
         props["filename"] = _safe_url(str(props.get("filename") or ""))
         logger.info("local audio [%s]: %s", reason, props)
+        from .pandora_diag import write as _diag
+
+        _diag("local_audio", reason=reason, **props)
 
     def _refresh_audio_url(self) -> None:
         """Audio URLs are short-lived; ask the API for a fresh one."""
