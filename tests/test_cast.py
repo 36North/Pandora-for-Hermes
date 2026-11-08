@@ -406,6 +406,41 @@ def test_player_previous_ensures_output_and_replays(monkeypatch):
     assert calls == ["ensure_output", "replay"]
 
 
+def test_set_output_to_local_keeps_the_song_and_position(monkeypatch):
+    """Switching Cast -> local must move the same song, not advance: the device's
+    stop reports IDLE, which used to be read as a finished track."""
+    import pandora.pandora_cast as pc
+    import pandora.pandora_player as pp
+    player = pp.PandoraPlayer()
+    player._client = FakePlayerClient()
+    player.output = "Kitchen Display"
+    player.kind = "track"
+    player.source_id = "SF:17231:21727"
+    player.item = {"audioUrl": "http://example/x.mp3", "trackToken": "tok"}
+    player._cast_was_active = True
+
+    def stop() -> None:
+        # A fast device callback: IDLE arrives while set_output still holds the switch.
+        player.new_media_status(types.SimpleNamespace(
+            player_state="IDLE", current_time=0.0, play_duration=0.0))
+
+    player._cast = types.SimpleNamespace(
+        connected=True, name="Kitchen Display", stop=stop,
+        status=lambda: {"current_time": 45.0, "play_duration": 212.0})
+
+    monkeypatch.setattr(pc, "reset_cast_output", lambda: None)
+    events = []
+    monkeypatch.setattr(player, "_ensure_output", lambda: events.append("ensure"))
+    monkeypatch.setattr(player, "_play_item_audio", lambda: events.append("play"))
+    monkeypatch.setattr(player, "seek", lambda seconds: events.append(("seek", seconds)))
+
+    st = player.set_output("local")
+    assert st["output"] == "local"
+    assert events == ["ensure", "play", ("seek", 45.0)]
+    kinds = [c[0] for c in player._client.calls]
+    assert "ended" not in kinds
+
+
 def test_player_previous_without_a_track_raises(monkeypatch):
     import pandora.pandora_player as pp
     player = pp.PandoraPlayer()

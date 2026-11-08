@@ -39,6 +39,7 @@ const CSS = `
 .pandora-list { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
 .pandora-item { display: flex; align-items: center; gap: 6px; width: 100%; padding: 4px 6px; border: 0; border-radius: 4px; background: transparent; color: var(--ui-text-secondary); font-size: 0.75rem; text-align: left; cursor: pointer; }
 .pandora-item:hover { background: var(--ui-control-hover-background); color: var(--foreground); }
+.pandora-item.is-active { color: var(--foreground); font-weight: 600; }
 .pandora-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pandora-error { font-size: 0.6875rem; color: var(--ui-text-secondary); border-left: 2px solid var(--ui-accent); padding-left: 6px; }
 .pandora-muted { font-size: 0.6875rem; color: var(--ui-text-quaternary); }
@@ -237,7 +238,8 @@ function PandoraMenu({ ctx, state, stateError, onClose }) {
   const deviceRow = (name, label) =>
     jsx('button', {
       type: 'button',
-      className: 'pandora-item',
+      className: state.output === name ? 'pandora-item is-active' : 'pandora-item',
+      'aria-current': state.output === name ? 'true' : undefined,
       disabled: busy,
       title: label,
       onClick: async () => {

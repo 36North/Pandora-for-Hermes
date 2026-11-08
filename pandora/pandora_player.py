@@ -153,6 +153,9 @@ class PandoraPlayer:
         # friendly name (Nest Audio / Nest Hub / Cast group).
         self.output: str = "local"
         self._cast = None  # pandora_cast.CastOutput instance in cast mode
+        # A switch tears one output down and starts the other; the old device's
+        # IDLE/stop pushes are that teardown, not a finished song.
+        self._switching: bool = False
 
     # ── process / IPC ──────────────────────────────────────────────────────
 
@@ -437,6 +440,10 @@ class PandoraPlayer:
 
     def new_media_status(self, status: Any) -> None:
         """Cast media-status push (pychromecast status listener callback)."""
+        if self._switching:
+            # Stopping the device during an output switch reports IDLE; acting on
+            # it would advance the station instead of moving the same song.
+            return
         state = str(getattr(status, "player_state", "") or "")
         try:
             if state in ("PLAYING", "BUFFERING"):
@@ -501,29 +508,39 @@ class PandoraPlayer:
         """Switch the playback output: 'local' or a Cast device name."""
         name = str(name or "local").strip() or "local"
         with self._lock:
-            if name != "local":
-                # Exactly one output may play: a second live stream echoes and
-                # both ends report end-of-track, which skips Pandora twice.
-                self._stop_local_output()
-                from .pandora_cast import get_cast_output
-                cast = get_cast_output()
-                cast.connect(name, timeout=15.0, device_list=device_list)
-                self.output = cast.name or name
-            else:
-                if self._cast is not None:
-                    try:
-                        self._cast.stop()
-                    except Exception:
-                        logger.debug("cast stop failed", exc_info=True)
-                from .pandora_cast import reset_cast_output
-                reset_cast_output()
-                self._cast = None
-                self.output = "local"
+            # Carry the playhead across the switch: the device reports where the
+            # song is, and the local player picks it up from there.
+            position = self._cast_position() if (self._cast is not None and name == "local") else 0.0
+            self._switching = True
+            try:
+                if name != "local":
+                    # Exactly one output may play: a second live stream echoes and
+                    # both ends report end-of-track, which skips Pandora twice.
+                    self._stop_local_output()
+                    from .pandora_cast import get_cast_output
+                    cast = get_cast_output()
+                    cast.connect(name, timeout=15.0, device_list=device_list)
+                    self.output = cast.name or name
+                else:
+                    if self._cast is not None:
+                        self._cast_was_active = False  # the stop's IDLE is teardown, not an end
+                        try:
+                            self._cast.stop()
+                        except Exception:
+                            logger.debug("cast stop failed", exc_info=True)
+                    from .pandora_cast import reset_cast_output
+                    reset_cast_output()
+                    self._cast = None
+                    self.output = "local"
+            finally:
+                self._switching = False
             # If something is playing, move the current item to the new output.
             if self.kind:
                 try:
                     self._ensure_output()
                     self._play_item_audio()
+                    if name == "local" and position > 0.5:
+                        self.seek(position)
                 except Exception as exc:
                     logger.warning("could not move playback to %r: %s", name, exc)
                     self.last_error = str(exc)
