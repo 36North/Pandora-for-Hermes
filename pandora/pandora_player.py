@@ -707,18 +707,32 @@ class PandoraPlayer:
             return self.state()
 
     def previous(self) -> dict[str, Any]:
+        """Restart the current track.
+
+        Pandora radio has no "previous track" operation: the API answers
+        NOT_SUPPORTED for the previous mutation on station sources, and the
+        station's queue is not navigable backwards. What every Pandora client
+        does instead is start the song over, so that is what this exposes —
+        reported as a replay, with the active output rewound to 0. With
+        nothing loaded, start the station instead.
+        """
         with self._lock:
-            elapsed = max(0, int(time.time() - self.started_at))
-            data = self.client.playback_previous(self.source_id, self.index, elapsed)
-            node = ((data.get("playback") or {}).get("previous") or {})
-            nxt = node.get("current") or {}
-            if not nxt:
-                raise PlayerError("Pandora did not return a previous track.")
-            self._set_item(nxt, source_id=self.source_id, source_type=self.source_type,
-                           index=int(nxt.get("index") or self.index))
-            self._ensure_output()
-            self._play_item_audio()
-            return self.state()
+            if not self.item:
+                raise PlayerError("Nothing is playing — start a station first.")
+            try:
+                self._ensure_output()
+            except Exception:
+                logger.debug("previous: ensure output failed", exc_info=True)
+            try:
+                return self.replay()
+            except Exception:
+                logger.debug("previous: replay unavailable; rewinding locally", exc_info=True)
+                if self.kind:
+                    try:
+                        self.seek(0.0)
+                    except Exception:
+                        logger.debug("previous: seek(0) failed", exc_info=True)
+                return self.state()
 
     def replay(self) -> dict[str, Any]:
         token = str(self.item.get("trackToken") or "")

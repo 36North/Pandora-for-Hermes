@@ -291,7 +291,7 @@ function PandoraMenu({ ctx, state, stateError, onClose }) {
       jsxs('div', {
         className: 'pandora-row',
         children: [
-          iconButton('debug-step-back', 'Previous', () => call('/action', { action: 'previous' }), busy || !hasTrack),
+          iconButton('debug-step-back', 'Restart track', () => call('/action', { action: 'previous' }), busy || !hasTrack),
           iconButton(paused ? 'play' : 'debug-pause',
             paused ? 'Play' : 'Pause',
             () => call('/action', { action: paused ? 'resume' : 'pause' }),

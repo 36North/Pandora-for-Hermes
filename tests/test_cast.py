@@ -346,6 +346,30 @@ def test_player_replay_restarts_from_top(fake_discovery, fake_chromecast, monkey
     player.stop()
 
 
+def test_player_previous_restarts_track_instead_of_asking_pandora(fake_discovery, fake_chromecast, monkeypatch):
+    """Pandora answers NOT_SUPPORTED for the previous mutation on station
+    sources, so previous() must replay the current track rather than call it."""
+    import pandora.pandora_player as pp
+    player = pp.PandoraPlayer()
+    player._client = FakePlayerClient()
+
+    player.set_output("Kitchen Display")
+    player.play_source("SF:17231:21727")
+    push = types.SimpleNamespace(player_state="PLAYING",
+                                 current_time=45.0, play_duration=212.0)
+    player.new_media_status(push)
+    pandora_cast.get_cast_output().new_media_status(push)
+
+    st = player.previous()
+    assert st["track"] == "Make You Feel My Love"
+    assert pandora_cast.get_cast_output()._media.status.current_time == 0.0
+    kinds = [c[0] for c in player._client.calls]
+    assert "replay" in kinds
+    assert "previous" not in kinds
+
+    player.stop()
+
+
 def test_player_seek_uses_absolute_position_on_cast(fake_discovery, fake_chromecast, monkeypatch):
     """seek(n) must land at n seconds — pychromecast takes an absolute position."""
     import pandora.pandora_player as pp
@@ -364,21 +388,30 @@ def test_player_seek_uses_absolute_position_on_cast(fake_discovery, fake_chromec
     player.stop()
 
 
-def test_player_previous_ensures_output(monkeypatch):
-    """previous() must re-establish the output first (a dead mpv fd silently eats commands)."""
+def test_player_previous_ensures_output_and_replays(monkeypatch):
+    """previous() restarts the current track, re-establishing the output first
+    (a dead mpv fd silently eats commands) and never asking Pandora for a
+    previous track — the API answers NOT_SUPPORTED on station sources."""
     import pandora.pandora_player as pp
     player = pp.PandoraPlayer()
     player._client = FakePlayerClient()
-    player.source_id = "ST:0:1"
-    player.source_type = "ST"
-    player.index = 0
+    player._set_item({"id": "x", "trackToken": "tok", "trackName": "T", "artistName": "A"},
+                     source_id="ST:0:1", source_type="ST", index=0)
 
     calls = []
     monkeypatch.setattr(player, "_ensure_output", lambda: calls.append("ensure_output"))
-    monkeypatch.setattr(player, "_play_item_audio", lambda: calls.append("play_audio"))
+    monkeypatch.setattr(player, "replay", lambda: (calls.append("replay"), player.state())[1])
 
     player.previous()
-    assert calls == ["ensure_output", "play_audio"]
+    assert calls == ["ensure_output", "replay"]
+
+
+def test_player_previous_without_a_track_raises(monkeypatch):
+    import pandora.pandora_player as pp
+    player = pp.PandoraPlayer()
+    player._client = FakePlayerClient()
+    with pytest.raises(pp.PlayerError):
+        player.previous()
 
 
 def test_player_local_untouched(fake_chromecast, monkeypatch):

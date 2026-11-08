@@ -617,7 +617,7 @@ _INT = {"type": "integer"}
 PANDORA_PLAYBACK_SCHEMA = _schema(
     "pandora_playback",
     "Control Pandora playback on this machine (local mpv player): play a station/source, "
-    "show now-playing, pause/resume, skip, previous, replay, volume, seek, stop. "
+    "show now-playing, pause/resume, skip, restart the current track (previous), replay, volume, seek, stop. "
     "Tier note: on-demand (TR:/AL:/PL:) sources require Premium — on Free/Plus, play a "
     "station (ST:/SF:) instead, or create one via pandora_stations (see the pandora-usage skill).",
     {
