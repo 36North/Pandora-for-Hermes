@@ -75,6 +75,27 @@ def _normalize(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", str(name or "").lower())
 
 
+def _stop_browser(browser: Any) -> None:
+    """Stop a discovery browser and close its Zeroconf instance.
+
+    ``discover_chromecasts`` hands the caller a live browser; dropping the
+    reference leaves its multicast listener thread and socket running, so every
+    scan would add one. Callers own it and must stop it.
+    """
+    try:
+        stop = getattr(browser, "stop_discovery", None)
+        if callable(stop):
+            stop()
+    except Exception:
+        logger.debug("browser stop_discovery failed", exc_info=True)
+    zc = getattr(browser, "zc", None) or getattr(browser, "zeroconf", None)
+    if zc is not None:
+        try:
+            zc.close()
+        except Exception:
+            logger.debug("zeroconf close failed", exc_info=True)
+
+
 def discover_devices(timeout: float = 10.0) -> list[dict[str, Any]]:
     """List Cast devices on the local network.
 
@@ -85,21 +106,24 @@ def discover_devices(timeout: float = 10.0) -> list[dict[str, Any]]:
     _require_cast()
     from pychromecast.discovery import discover_chromecasts
     try:
-        devices, _browser = discover_chromecasts(timeout=timeout)
+        devices, browser = discover_chromecasts(timeout=timeout)
     except Exception as exc:
         raise CastError(f"Cast discovery failed: {exc}") from exc
-    out: list[dict[str, Any]] = []
-    for d in devices:
-        out.append({
-            "name": str(d.friendly_name or d.model_name or "Chromecast"),
-            "model": str(d.model_name or ""),
-            "type": str(getattr(d, "cast_type", "") or ""),
-            "host": str(d.host or ""),
-            "port": int(d.port or 8009),
-            "uuid": str(getattr(d, "uuid", "") or ""),
-        })
-    out.sort(key=lambda x: x["name"].lower())
-    return out
+    try:
+        out: list[dict[str, Any]] = []
+        for d in devices:
+            out.append({
+                "name": str(d.friendly_name or d.model_name or "Chromecast"),
+                "model": str(d.model_name or ""),
+                "type": str(getattr(d, "cast_type", "") or ""),
+                "host": str(d.host or ""),
+                "port": int(d.port or 8009),
+                "uuid": str(getattr(d, "uuid", "") or ""),
+            })
+        out.sort(key=lambda x: x["name"].lower())
+        return out
+    finally:
+        _stop_browser(browser)
 
 
 def _pick_device(devices: list[dict[str, Any]], target: str) -> dict[str, Any]:
@@ -434,16 +458,7 @@ class CastOutput:
                 self._media = None
                 self._last_status = None
             if self._browser is not None:
-                try:
-                    self._browser.stop_discovery()
-                except Exception:
-                    pass
-                zc = getattr(self._browser, "zc", None) or getattr(self._browser, "zeroconf", None)
-                if zc is not None:
-                    try:
-                        zc.close()
-                    except Exception:
-                        pass
+                _stop_browser(self._browser)
                 self._browser = None
             self.name = self.model = self.device_type = self.host = ""
             self.port = 0
