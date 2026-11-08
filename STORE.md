@@ -90,10 +90,14 @@ capabilities:
   activation is still a per-profile `plugins.enabled` entry.
 - **mpv is not bundled.** The package carries no executables; `hermes pandora
   setup` (or the automatic first-play fetch) downloads a portable build into
-  `<launch home>/plugin-data/pandora/bin`, verifies the zip's SHA-256 (a sibling
-  `.sha256` file, or `PANDORA_MPV_SHA256`) and extracts it. Publish
+  `<launch home>/plugin-data/pandora/bin`, verifies the zip's SHA-256 (the
+  sibling `.sha256` asset, or `PANDORA_MPV_SHA256`) and extracts it. Publish
   `vendor/mpv-portable.zip` + `vendor/mpv-portable.zip.sha256` as release assets
-  and point `PANDORA_MPV_URL` (or `DEFAULT_MPV_URL` in `pandora_mpv.py`) at them.
-  mpv is GPLv2+; keep its license/notice in the zip and in `bin/`.
+  under tag `mpv`. `DEFAULT_MPV_URL` uses the
+  `github-release://<owner>/<repo>/<tag>/<asset>` form, which resolves the asset
+  id through the GitHub API — the browser
+  `/releases/download/...` URL 504'd during testing, while the API asset route
+  served the full 49 MB. mpv is GPLv2+; keep its license/notice in the zip and
+  in `bin/`.
 - **Still shipping the old `bin/mpv.exe`?** Don't: the install scanner flags
   bundled executables as HIGH and blocks community installs without `--force`.
