@@ -1,0 +1,54 @@
+name: pandora
+label: Pandora
+kind: standalone
+version: 0.3.0
+author: ChickenFingers
+description: >
+  Pandora (pandora.com) inside Hermes: play your stations on this PC or a Cast
+  device and see the current artist and song in the desktop status bar —
+  left-click it for play/pause, skips, thumbs, volume, recent stations and
+  output. Search an artist or song to start a station. Works on Free and Plus;
+  on-demand songs, albums and playlists appear only when the account's plan
+  allows them. Local playback needs mpv, which is not bundled: run
+  `hermes pandora setup` to download a checksum-verified portable build, or let
+  the plugin fetch it automatically the first time playback needs it. Set
+  PANDORA_MPV_PATH to use an mpv you already installed instead.
+requires_hermes: ">=0.21.6"
+provides_tools:
+  - pandora_playback
+  - pandora_search
+  - pandora_stations
+  - pandora_feedback
+  - pandora_collection
+  - pandora_playlists
+  - pandora_devices
+provides_hooks: []
+optional_env:
+  - name: PANDORA_EMAIL
+    description: "Pandora account email (`hermes pandora login` sets it); used for automatic re-login when the session token expires"
+    prompt: "Pandora account email"
+    password: false
+  - name: PANDORA_PASSWORD
+    description: "Pandora account password (`hermes pandora login` sets it); kept in the profile's .env"
+    prompt: "Pandora account password"
+    password: true
+  - name: PANDORA_API_BASE_URL
+    description: "Pandora web API base URL (default: https://www.pandora.com)"
+    prompt: "Pandora API base URL"
+    password: false
+  - name: PANDORA_MPV_PATH
+    description: "Path to an mpv executable (wins over the downloaded portable build)"
+    prompt: "mpv executable path"
+    password: false
+  - name: PANDORA_MPV_URL
+    description: "Portable mpv zip used by `hermes pandora setup` and the automatic first-play download (default: the plugin's published release asset)"
+    prompt: "mpv portable zip URL"
+    password: false
+  - name: PANDORA_MPV_SHA256
+    description: "Expected SHA-256 of the mpv zip; checked after download when set (a sibling .sha256 file is used otherwise)"
+    prompt: "mpv zip SHA-256"
+    password: false
+  - name: PANDORA_MPV_AUTO_DOWNLOAD
+    description: "Set to 0 to disable the automatic mpv download on first playback (use `hermes pandora setup` instead)"
+    prompt: "Auto-download mpv? (1/0)"
+    password: false

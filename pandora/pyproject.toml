@@ -1,0 +1,10 @@
+[project]
+name = "hermes-pandora"
+version = "0.1.0"
+description = "Pandora music control for Hermes Agent: playback, search, stations, feedback, collections and Cast output."
+# Local playback drives mpv over a Windows named pipe and needs os.set_blocking,
+# which Windows only gained in Python 3.12. Hermes' bundled runtime is 3.14.
+requires-python = ">=3.12"
+# Casting uses pychromecast 14.x; install it into the plugin environment so a
+# clean install has casting without relying on the Hermes repo venv.
+dependencies = ["pychromecast>=14,<15"]

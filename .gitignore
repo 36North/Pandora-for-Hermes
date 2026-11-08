@@ -1,0 +1,6 @@
+backups/
+*.pyc
+__pycache__/
+.env
+auth.json
+vendor/

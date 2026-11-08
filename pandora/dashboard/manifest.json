@@ -1,0 +1,7 @@
+{
+  "name": "pandora",
+  "label": "Pandora",
+  "description": "Now playing and playback controls for the Pandora plugin",
+  "version": "0.1.0",
+  "api": "plugin_api.py"
+}

@@ -1,0 +1,20 @@
+Third-party binaries bundled with the Pandora plugin
+====================================================
+
+bin/mpv.exe, bin/mpv.com  —  mpv 0.42.0-1-g3138fc8ee (Windows x86-64)
+  Copyright © 2000-2026 mpv/MPlayer/mplayer2 projects.
+  This is the shinchiro portable build:
+    https://github.com/shinchiro/mpv-winbuild-cmake
+  mpv is free software, licensed under LGPL-2.1-or-later with GPL-2.0-or-later
+  components; this combined binary is redistributed under the GNU General Public
+  License, version 2 or later. The license text is in LICENSE-GPL-2.0.txt.
+  Corresponding source:
+    https://github.com/mpv-player/mpv
+    https://github.com/shinchiro/mpv-winbuild-cmake
+  The binary has not been modified.
+
+bin/d3dcompiler_43.dll  —  Microsoft DirectX redistributable
+  Copyright © Microsoft Corporation. Redistributed under the Microsoft DirectX
+  redistributable terms that accompany the DirectX SDK / end-user runtime.
+
+The Python plugin code in this directory is not covered by these licenses.
