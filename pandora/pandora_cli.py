@@ -366,6 +366,7 @@ def cmd_status(args) -> Optional[int]:
     print(f"  Account:  {status['username']}")
     auth_type = status.get("auth_type") or "unknown"
     print(f"  Auth:     {auth_type}{' (browser fallback)' if auth_type == 'browser' else ''}")
+    print(f"  Creds:    {pandora_auth.credential_source()}")
     print(f"  Device:   {status['device_uuid']}")
     print(f"  Login at: {status['last_login']}")
     try:

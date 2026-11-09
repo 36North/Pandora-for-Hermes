@@ -154,13 +154,40 @@ def _default_env_value(name: str) -> str:
     return ""
 
 
+def _stored_credentials() -> dict[str, Any]:
+    try:
+        from .pandora_secretstore import load
+
+        return load() or {}
+    except Exception:
+        return {}
+
+
 def _secret(name: str, default: str = "") -> str:
+    if name == "PANDORA_PASSWORD":
+        stored = str(_stored_credentials().get("password") or "").strip()
+        if stored:
+            return stored
     try:
         from agent.secret_scope import get_secret
         value = str(get_secret(name, default) or "").strip()
     except Exception:
         value = ""
-    return value or _default_env_value(name) or default
+    value = value or _default_env_value(name)
+    if value:
+        return value
+    if name == "PANDORA_EMAIL":
+        return str(_stored_credentials().get("email") or "").strip() or default
+    return default
+
+
+def credential_source() -> str:
+    """How the saved password is stored — never the value itself."""
+    if str(_stored_credentials().get("password") or "").strip():
+        return "dpapi"
+    if _default_env_value("PANDORA_PASSWORD"):
+        return "env"
+    return "none"
 
 
 def base_url() -> str:
@@ -168,17 +195,41 @@ def base_url() -> str:
 
 
 def save_credentials(email: str, password: str) -> None:
-    """Persist credentials in the launch profile's .env (shared by every profile)."""
-    from hermes_cli.config import save_env_value
+    """Persist credentials: email as metadata, password encrypted when possible.
+
+    Windows DPAPI keeps the password out of ``.env`` while still readable
+    unattended for automatic re-login. Every profile shares the launch home, so
+    one login serves all of them. Without DPAPI the password stays in ``.env``
+    exactly as before.
+    """
+    from hermes_cli.config import remove_env_value, save_env_value
+
+    encrypted = False
+    if password:
+        try:
+            from . import pandora_secretstore
+
+            encrypted = pandora_secretstore.save(email, password)
+        except Exception:
+            encrypted = False
     with _account_home():
         if email:
             save_env_value("PANDORA_EMAIL", email)
-        if password:
+        if password and not encrypted:
             save_env_value("PANDORA_PASSWORD", password)
+        elif encrypted:
+            remove_env_value("PANDORA_PASSWORD")  # migrate off the plaintext copy
 
 
 def forget_credentials(*, keep_email: bool = True) -> None:
     from hermes_cli.config import remove_env_value
+
+    try:
+        from .pandora_secretstore import clear
+
+        clear()
+    except Exception:
+        pass
     with _account_home():
         if not keep_email:
             remove_env_value("PANDORA_EMAIL")
