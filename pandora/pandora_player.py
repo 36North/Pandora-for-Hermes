@@ -519,9 +519,15 @@ class PandoraPlayer:
         """Switch the playback output: 'local' or a Cast device name."""
         name = str(name or "local").strip() or "local"
         with self._lock:
-            # Carry the playhead across the switch: the device reports where the
-            # song is, and the local player picks it up from there.
-            position = self._cast_position() if (self._cast is not None and name == "local") else 0.0
+            # Carry the playhead across the switch: the active output reports
+            # where the song is, and the new one picks it up from there.
+            position = 0.0
+            if self.kind:
+                if self._cast is not None and self._cast.connected:
+                    position = float(self._cast_position() or 0.0)
+                elif self.started_at:
+                    clock = self._pause_started if (self.paused and self._pause_started) else time.time()
+                    position = max(0.0, clock - self.started_at)
             self._switching = True
             try:
                 if name != "local":
@@ -571,9 +577,7 @@ class PandoraPlayer:
             if self.kind:
                 try:
                     self._ensure_output()
-                    self._play_item_audio()
-                    if name == "local" and position > 0.5:
-                        self.seek(position)
+                    self._play_item_audio(position=position)
                     if name == "local":
                         self._schedule_audio_probe("switch to local")
                 except Exception as exc:
@@ -581,7 +585,7 @@ class PandoraPlayer:
                     self.last_error = str(exc)
             return self.state()
 
-    def _play_item_audio(self) -> None:
+    def _play_item_audio(self, *, position: float = 0.0) -> None:
         url = str(self.item.get("audioUrl") or "")
         if not url:
             self._refresh_audio_url()
@@ -595,13 +599,15 @@ class PandoraPlayer:
             self._cast_was_active = False  # new load has not started yet
             self._cast.load(url, title=self.track_name, artist=self.artist_name,
                             duration=self.duration, volume=self.volume / 100.0,
-                            art_url=self.art_url)
+                            art_url=self.art_url, position=position)
         else:
             self._suppress_end = False
             self._loading = True
             self._load_at = time.time()
             self._send(["loadfile", url, "replace"])
             self._send(["set_property", "pause", False])
+            if position > 0.5:
+                self.seek(position)
             self._schedule_audio_probe("load")
 
     def _schedule_audio_probe(self, reason: str, delay: float = 2.0) -> None:

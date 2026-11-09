@@ -507,7 +507,7 @@ class CastOutput:
 
     def load(self, url: str, *, title: str = "", artist: str = "",
              duration: float = 0.0, volume: Optional[float] = None,
-             art_url: str = "") -> dict[str, Any]:
+             art_url: str = "", position: float = 0.0) -> dict[str, Any]:
         media = self._media_or_raise()
         ctype = _content_type_for_url(url)
         label = f"{title} — {artist}".strip(" —") if (title or artist) else (title or None)
@@ -534,7 +534,8 @@ class CastOutput:
         # pychromecast >= 14: play_media(); older releases: load().
         if hasattr(media, "play_media"):
             media.play_media(url, ctype, title=label, stream_type=STREAM_TYPE_BUFFERED,
-                             autoplay=True, metadata=metadata, thumb=art_url or None)
+                             autoplay=True, metadata=metadata, thumb=art_url or None,
+                             current_time=float(position) if position and position > 0.5 else None)
         else:  # pragma: no cover - pychromecast < 14
             metadata = None
             try:

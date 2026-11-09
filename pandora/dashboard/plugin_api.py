@@ -285,29 +285,65 @@ def get_state() -> dict[str, Any]:
     return _state_now()
 
 
+def _merge_stations(recent: list[dict[str, Any]], collection: list[dict[str, Any]],
+                    recent_limit: int) -> list[dict[str, Any]]:
+    """Recents first (capped), then the collection minus anything already listed.
+
+    Keyed on the station id; the name is the fallback key for an item without one.
+    """
+    merged: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for item in list(recent)[:recent_limit] + list(collection):
+        key = str(item.get("id") or item.get("name") or "").strip().lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        merged.append({"id": item.get("id"), "name": str(item.get("name") or "")})
+    return merged
+
+
+def _all_stations(client, *, page_size: int = 50, max_pages: int = 4) -> list[dict[str, Any]]:
+    """The account's stations; Pandora caps a page at 50, so follow the offset."""
+    out: list[dict[str, Any]] = []
+    for page in range(max_pages):
+        payload = client.collection(types=["ST"], limit=page_size, offset=page * page_size)
+        items = ((payload.get("collection") or {}).get("items") or [])
+        for item in items:
+            if str(item.get("__typename") or "Station") == "Station":
+                out.append({"id": item.get("id"), "name": str(item.get("name") or "")})
+        if len(items) < page_size:
+            break
+    return out
+
+
 @router.get("/stations")
 def get_stations(limit: int = 10) -> dict[str, Any]:
-    """The stations this account actually used lately.
+    """Recent stations first, then the rest of the collection (hybrid list).
 
-    ``recentFavorites`` is Pandora's own recency list; a collection of a few
-    hundred stations is noise in a 330px menu, so the default is the last 10
-    played. Falls back to the collection when the recency list is empty.
+    ``limit`` is how many *recents* lead the list; everything else follows in
+    collection order so the menu can be scrolled instead of truncated.
     """
-    limit = max(1, min(int(limit or 10), 25))
+    recent_limit = max(1, min(int(limit or 10), 20))
     try:
         client = _client_module().PandoraClient()
-        payload = client.recent_favorites(limit=limit)
+        payload = client.recent_favorites(limit=min(20, recent_limit * 2))
         items = ((payload.get("recentFavorites") or {}).get("items") or [])
-        stations = [{"id": i.get("id"), "name": str(i.get("name") or "")}
-                    for i in items if str(i.get("__typename") or "") == "Station"]
+        recents = [{"id": i.get("id"), "name": str(i.get("name") or "")}
+                   for i in items if str(i.get("__typename") or "") == "Station"]
     except Exception as exc:
         return {"ok": False, "error": str(exc)}
+    try:
+        collection = _all_stations(client)
+    except Exception:
+        log.debug("station collection failed", exc_info=True)
+        collection = []
+    stations = _merge_stations(recents, collection, recent_limit)
     if not stations:
-        fallback = _call_tool("stations", {"action": "list", "limit": limit})
+        fallback = _call_tool("stations", {"action": "list", "limit": 50})
         if not fallback.get("ok"):
             return fallback
-        stations = (fallback.get("stations") or [])[:limit]
-    return {"ok": True, "stations": stations, "recent": True}
+        stations = fallback.get("stations") or []
+    return {"ok": True, "stations": stations, "recent": recent_limit}
 
 
 @router.get("/search")

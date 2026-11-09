@@ -452,12 +452,12 @@ def test_set_output_to_local_keeps_the_song_and_position(monkeypatch):
     monkeypatch.setattr(pc, "reset_cast_output", lambda: None)
     events = []
     monkeypatch.setattr(player, "_ensure_output", lambda: events.append("ensure"))
-    monkeypatch.setattr(player, "_play_item_audio", lambda: events.append("play"))
-    monkeypatch.setattr(player, "seek", lambda seconds: events.append(("seek", seconds)))
+    monkeypatch.setattr(player, "_play_item_audio",
+                        lambda *, position=0.0: events.append(("play", position)))
 
     st = player.set_output("local")
     assert st["output"] == "local"
-    assert events == ["ensure", "play", ("seek", 45.0)]
+    assert events == ["ensure", ("play", 45.0)]
     kinds = [c[0] for c in player._client.calls]
     assert "ended" not in kinds
 
