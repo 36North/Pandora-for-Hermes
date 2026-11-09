@@ -14,7 +14,7 @@ import {
   useQuery,
   useQueryClient
 } from '@hermes/plugin-sdk'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
 
 const ID = 'pandora'
@@ -143,6 +143,41 @@ function PandoraChip({ ctx }) {
   })
 }
 
+function TrackProgress({ state }) {
+  // The backend reports the position every ~5 s. Advance it locally between
+  // polls from the moment it arrived, so the bar moves with the song instead of
+  // stepping: no extra requests, one style update every 500 ms while open.
+  const playing = !!state.playing && !state.paused
+  const duration = Number(state.duration_seconds) || 0
+  const reported = Number(state.position_seconds) || 0
+  const anchor = useRef({ pos: reported, at: Date.now() })
+  const [, setTick] = useState(0)
+
+  useEffect(() => {
+    anchor.current = { pos: reported, at: Date.now() }
+  }, [reported, state.track, playing])
+
+  useEffect(() => {
+    if (!playing || !duration) return undefined
+    const id = setInterval(() => setTick(tick => tick + 1), 500)
+    return () => clearInterval(id)
+  }, [playing, duration, state.track])
+
+  if (!duration) return null
+  const position = playing
+    ? anchor.current.pos + (Date.now() - anchor.current.at) / 1000
+    : reported
+  const pct = Math.min(100, Math.max(0, (position / duration) * 100))
+  return jsx('div', {
+    className: 'pandora-progress',
+    role: 'progressbar',
+    'aria-valuemin': 0,
+    'aria-valuemax': 100,
+    'aria-valuenow': Math.round(pct),
+    children: jsx('div', { className: 'pandora-progress-fill', style: { width: `${pct}%` } })
+  })
+}
+
 function PandoraMenu({ ctx, state, stateError, onClose }) {
   const queryClient = useQueryClient()
   const [error, setError] = useState('')
@@ -268,22 +303,9 @@ function PandoraMenu({ ctx, state, stateError, onClose }) {
     return `Pandora backend unreachable — ${raw}`
   })()
 
-  const duration = Number(state.duration_seconds) || 0
-  const position = Number(state.position_seconds) || 0
-  const pct = duration > 0 ? Math.min(100, Math.max(0, (position / duration) * 100)) : 0
-
   return jsxs('div', {
     children: [
-      duration > 0
-        ? jsx('div', {
-            className: 'pandora-progress',
-            role: 'progressbar',
-            'aria-valuemin': 0,
-            'aria-valuemax': 100,
-            'aria-valuenow': Math.round(pct),
-            children: jsx('div', { className: 'pandora-progress-fill', style: { width: `${pct}%` } })
-          })
-        : null,
+      jsx(TrackProgress, { state }),
       errorText
         ? jsx('div', { className: 'pandora-error', children: errorText })
         : null,
