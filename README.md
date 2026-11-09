@@ -177,11 +177,18 @@ The agent gets seven tools. You talk naturally ("play some Vance Joy", "what's
 playing", "thumbs down this", "cast to the kitchen display") and it picks the
 action.
 
+**You rarely need ids.** `pandora_stations action=play` accepts a station *name*
+(exact match first, then substring) and searches the whole account, not just the
+first page. "Play Adele" becomes: look for an existing station → play it; if
+there is none, create one from the artist's search seed and play that. Ids from
+`pandora_search` are only needed when you want a specific source.
+
+
 ### `pandora_playback`
 
 | Action | Purpose | Premium? |
 |---|---|---|
-| `play` | Start a source (`source_id`, e.g. `ST:0:123`, `SF:16722:1360`) | station: no |
+| `play` | Start a source (`source_id`, e.g. `ST:0:123`, `SF:16722:1360`); for a name, use `pandora_stations play` | station: no |
 | `now_playing` | Current track, artist, position, output | no |
 | `pause` / `resume` | Pause/resume the active output | no |
 | `next` | Skip (Pandora's skip limits apply) | no |
@@ -204,7 +211,7 @@ usable with `pandora_playback play` and seeds for station creation.
 
 | Action | Purpose |
 |---|---|
-| `list` | Every station on the account |
+| `list` | Every station on the account (paginated, up to 200) |
 | `recent` | Pandora's recency list |
 | `play` | Play by `station` name/id or `source_id` |
 | `create` | New station from `seed_id`/`seed_ids` (from search), optional `name` |

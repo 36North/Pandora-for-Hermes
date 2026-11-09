@@ -202,17 +202,35 @@ def _station_name(station: dict) -> str:
     return str(station.get("name") or "")
 
 
+def _collection_stations(client: PandoraClient, *, limit: int = 200) -> list[dict]:
+    """Every station, following Pandora's 50-per-page offset cap.
+
+    A name lookup that only reads page one misses every station past the first
+    50 — an account with 147 stations silently failed to find most of them.
+    """
+    out: list[dict] = []
+    for _ in range(8):  # 8 pages * 50 = 400, well past any real account
+        if len(out) >= limit:
+            break
+        payload = client.collection(types=["ST"], limit=50, offset=len(out))
+        items = _items(payload, "collection")
+        out.extend(items)
+        if len(items) < 50:
+            break
+    return out[:limit]
+
+
 def _st_list(args: dict, action: str) -> str:
     client = PandoraClient()
-    payload = client.collection(types=["ST"], limit=int(args.get("limit") or 50))
-    stations = [{"id": i.get("id"), "name": _station_name(i)} for i in _items(payload, "collection")]
+    limit = max(1, min(int(args.get("limit") or 50), 200))
+    stations = [{"id": i.get("id"), "name": _station_name(i)}
+                for i in _collection_stations(client, limit=limit)]
     return _ok(action, count=len(stations), stations=stations)
 
 
 def _find_station(client: PandoraClient, target: str) -> dict:
-    payload = client.collection(types=["ST"], limit=50)
     wanted = target.strip().lower()
-    stations = _items(payload, "collection")
+    stations = _collection_stations(client, limit=200)
     for station in stations:
         if str(station.get("id") or "").lower() == wanted:
             return station

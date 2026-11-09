@@ -41,6 +41,8 @@ const CSS = `
 .pandora-item:hover { background: var(--ui-control-hover-background); color: var(--foreground); }
 .pandora-item.is-active { color: var(--foreground); font-weight: 600; }
 .pandora-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pandora-progress { height: 3px; border-radius: 9999px; background: var(--ui-stroke-secondary); overflow: hidden; }
+.pandora-progress-fill { height: 100%; background: var(--ui-accent); border-radius: inherit; transition: width 0.5s linear; }
 .pandora-error { font-size: 0.6875rem; color: var(--ui-text-secondary); border-left: 2px solid var(--ui-accent); padding-left: 6px; }
 .pandora-muted { font-size: 0.6875rem; color: var(--ui-text-quaternary); }
 .pandora-vol { min-width: 26px; text-align: center; font-size: 0.6875rem; color: var(--ui-text-secondary); }
@@ -262,8 +264,22 @@ function PandoraMenu({ ctx, state, stateError, onClose }) {
     return `Pandora backend unreachable — ${raw}`
   })()
 
+  const duration = Number(state.duration_seconds) || 0
+  const position = Number(state.position_seconds) || 0
+  const pct = duration > 0 ? Math.min(100, Math.max(0, (position / duration) * 100)) : 0
+
   return jsxs('div', {
     children: [
+      duration > 0
+        ? jsx('div', {
+            className: 'pandora-progress',
+            role: 'progressbar',
+            'aria-valuemin': 0,
+            'aria-valuemax': 100,
+            'aria-valuenow': Math.round(pct),
+            children: jsx('div', { className: 'pandora-progress-fill', style: { width: `${pct}%` } })
+          })
+        : null,
       errorText
         ? jsx('div', { className: 'pandora-error', children: errorText })
         : null,
