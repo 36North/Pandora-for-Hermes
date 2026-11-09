@@ -235,6 +235,37 @@ class PandoraClient:
         self._client.close()
         self._client = self._new_http_client(self._state)
 
+    def _persist_cookies(self) -> None:
+        """Write rotated ``Set-Cookie`` values back to the auth state.
+
+        PerimeterX (``_pxhd``) and the session cookies rotate mid-session. The
+        state on disk is only written at login, so a restart used to replay the
+        login-time values and look like a rollback. Compare the live jar first:
+        this runs after every request, and an auth.json write is only worth it
+        when something actually changed.
+        """
+        try:
+            jar = {c.name: c.value for c in self._client.cookies.jar}
+        except Exception:
+            return
+        if not jar:
+            return
+        current = dict(self._state.get("cookies") or {})
+        if jar == current:
+            return
+        self._state["cookies"] = jar
+        csrf = jar.get("csrftoken")
+        if csrf and csrf != self._state.get("csrf_token"):
+            self._state["csrf_token"] = csrf
+        token = jar.get("at")
+        if token and token != self._state.get("auth_token"):
+            self._state["auth_token"] = token
+        try:
+            pandora_auth.save_state(self._state)
+            logger.debug("Pandora cookies rotated; auth state saved")
+        except Exception as exc:  # never fail a request over bookkeeping
+            logger.debug("Could not persist rotated Pandora cookies: %s", exc)
+
     def _run(self, query: str, *, optional: Iterable[str] = (), _retried: bool = False) -> dict[str, Any]:
         optional = list(optional)
         while True:
@@ -244,6 +275,8 @@ class PandoraClient:
                     content=json.dumps({"query": query, "variables": {}, "operationName": None}))
             except httpx.HTTPError as exc:
                 raise PandoraError(f"Could not reach Pandora: {type(exc).__name__}: {exc}") from exc
+
+            self._persist_cookies()
 
             if response.status_code == 401:
                 if _retried:
