@@ -45,6 +45,46 @@ The **account, credentials, mpv binary and player** are shared across profiles �
 you sign in once (see [Where things live](#where-things-live)). Only the code and
 the enable flag are per profile, which is how Hermes scopes plugin execution.
 
+### From the plugin store
+
+Once Pandora is in the catalog, **Capabilities → Plugins** installs it into the
+profile the app is currently using — the same profile the chat runs as. That is
+the part the CLI does differently:
+
+| | Store / app install | `hermes plugins install` |
+|---|---|---|
+| Target profile | the app's **active** profile | the launch (default) profile, unless you pass `-p` |
+| Activation | enabled and activated immediately | enabled; a gateway restart is needed to pick up new Python deps |
+| Desktop half | copied into `desktop-plugins/pandora/` by the app | copied on the next app start or **Rescan** |
+
+So a store install normally needs no profile juggling. The CLI form does, when
+your desktop app runs a named profile.
+
+### Which profile the chip talks to
+
+The desktop half is **app-level**: one copy in `desktop-plugins/pandora/`, visible
+in every profile. The **backend** (`/api/plugins/pandora/*`) is mounted per
+profile. A profile without the Pandora package answers
+`404 {"detail":"Plugin not found"}` and the chip shows the *"not available in
+this profile"* banner — that is exactly what it looks like when the app runs
+`tinker` but the plugin was installed into the default home.
+
+Find the app's profile (desktop log line `gateway-route ... profile=<name>`), then
+install there:
+
+```bash
+hermes -p <profile> plugins install 36North/Pandora-for-Hermes#pandora --yes-deps --enable
+```
+
+or switch the app's active profile to the one that already has Pandora. The
+account, token, DPAPI blob and mpv binary are shared, so the second install needs
+no re-login. Confirm a profile really has it:
+
+```bash
+ls ~/.hermes/profiles/<profile>/plugins/pandora/plugin.yaml
+grep -A6 '^plugins:' ~/.hermes/profiles/<profile>/config.yaml   # enabled: … - pandora
+```
+
 Windows is the supported platform today: local playback drives mpv over a named
 pipe and needs `os.set_blocking` (Python 3.12+, which Hermes' bundled runtime
 satisfies). Casting needs `pychromecast` 14.x, declared in `pyproject.toml`, so
@@ -96,8 +136,8 @@ hermes pandora login
 Email + password against Pandora's web login endpoint. It prints a "No account?
 Sign up" link but **never opens a browser on a plain login**; use `--signup` if
 you want it opened. The session is stored in `auth.json` under `providers.pandora`
-and refreshed automatically; the email/password (used for automatic re-login when
-the token expires) are kept in the launch profile's `.env`.
+and refreshed automatically; the email stays in the launch profile's `.env` and
+the password is DPAPI-encrypted (see [Security](#security)).
 
 ### 4. Enable the toolset (only if your profile predates the install)
 
@@ -111,9 +151,12 @@ profile whose saved toolset list has no `pandora`, this is the one-time fix.
 ### 5. Restart the two surfaces
 
 - **Hermes Desktop** — copies `desktop/plugin.js` into `desktop-plugins/pandora/`
-  at startup. Restart the app once after installing.
+  at startup (or on **Rescan**). If you installed from the *store* page, the app
+  does this itself; a CLI install needs the app restarted once.
 - `hermes gateway restart` — mounts the chip's backend route
-  (`/api/plugins/pandora/*`) at gateway startup.
+  (`/api/plugins/pandora/*`) at gateway startup, and loads any Python dependency
+  (`pychromecast`) installed during enable. The enable command tells you when this
+  is required.
 
 ---
 
@@ -316,6 +359,16 @@ user plugin's backend only in a profile that enabled it. Install/enable it in th
 profile the app runs (`hermes -p <profile> plugins install … --enable`), or set
 `plugins.isolation: host` if you deliberately run several profiles.
 
+**The Plugins page says Pandora is installed, but the chip 404s** — that page
+reflects the package (and the app-level desktop half), not whether the active
+profile's backend loaded it. Check
+`profiles/<profile>/plugins/pandora/plugin.yaml` and the profile's
+`plugins.enabled`; a missing package or enable flag is the cause.
+
+**The chip does not appear after installing** — the app copies
+`desktop/plugin.js` into `desktop-plugins/pandora/` at startup or on **Rescan**.
+`hermes pandora setup` reminds you; a store install does the copy itself.
+
 **`503 The Pandora agent plugin is not loaded in this process`** — the dashboard
 backend runs in the gateway, which v0.23+ isolates from plugin code. The plugin
 self-loads its package for this case; if you still see it, restart the gateway.
@@ -323,7 +376,7 @@ self-loads its package for this case; if you still see it, restart the gateway.
 **Login is blocked (PerimeterX / 403)** — Pandora occasionally refuses scripted
 logins. Run `hermes pandora capture`, open pandora.com signed in, and paste the
 printed snippet into the browser console; the session is handed to the plugin.
-`hermes pandora import-session --token …` does the same by hand.
+`hermes pandora import-session --token «redacted-secret» also does the same by hand.
 
 **"mpv is required for local playback"** — run `hermes pandora setup`, or set
 `PANDORA_MPV_PATH`. A failed download prints the URL and expected hash; override
