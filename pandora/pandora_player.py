@@ -121,6 +121,24 @@ def _safe_url(url: str) -> str:
         return "<unprintable>"
 
 
+def _mpv_args(mpv_path: str, *, volume: int, pipe: str) -> list[str]:
+    """Command line for the playback mpv.
+
+    ``--gapless-audio=yes`` keeps the audio device open across files so a track
+    boundary does not click or gap. Every Pandora item is AAC 44.1 kHz stereo,
+    so there is no format change that would force the device to reopen anyway.
+    """
+    return [
+        str(mpv_path),
+        "--idle=yes", "--no-video", "--no-terminal", "--really-quiet",
+        "--force-window=no", "--audio-display=no",
+        f"--input-ipc-server={pipe}",
+        f"--volume={int(volume)}",
+        "--gapless-audio=yes", "--cache=yes", "--cache-secs=30",
+        "--user-agent=Mozilla/5.0",
+    ]
+
+
 class PandoraPlayer:
     """Singleton playback session (module-level instance ``player``)."""
 
@@ -188,15 +206,7 @@ class PandoraPlayer:
                     "Run `hermes pandora setup` to download a verified portable "
                     f"build, or set PANDORA_MPV_PATH to an mpv executable. ({exc})")
         pipe = _ipc_path()
-        args = [
-            self._mpv_path,
-            "--idle=yes", "--no-video", "--no-terminal", "--really-quiet",
-            "--force-window=no", "--audio-display=no",
-            f"--input-ipc-server={pipe}",
-            f"--volume={self.volume}",
-            "--gapless-audio=no", "--cache=yes", "--cache-secs=30",
-            "--user-agent=Mozilla/5.0",
-        ]
+        args = _mpv_args(self._mpv_path, volume=self.volume, pipe=pipe)
         logger.info("Starting mpv: %s", " ".join(args))
         self._proc = subprocess.Popen(
             args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
