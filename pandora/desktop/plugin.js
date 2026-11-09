@@ -106,9 +106,7 @@ function PandoraChip({ ctx }) {
     ? (state.artist ? `${state.artist} — ${state.track}` : state.track)
     : 'Pandora'
   const live = !!state.playing && !state.paused
-  const title = state.track
-    ? `${text}${state.plan && state.plan.label ? ` · ${state.plan.label}` : ''}`
-    : 'Pandora'
+  const title = text
 
   return jsxs(Popover, {
     open,
@@ -285,7 +283,7 @@ function PandoraMenu({ ctx, state, stateError, onClose }) {
           }),
           jsx('div', {
             className: 'pandora-plan',
-            children: plan.label ? `${plan.label} · ${plan.note || ''}` : ''
+            children: plan.note || ''
           })
         ]
       }),
