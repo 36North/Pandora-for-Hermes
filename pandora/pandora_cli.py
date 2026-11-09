@@ -420,6 +420,8 @@ def cmd_setup(args) -> int:
     except Exception:
         pass
     print("Local playback is ready.")
+    print("  → Restart the Hermes desktop app once (or Rescan in Capabilities → Plugins)")
+    print("    so the Pandora chip is copied into the app and appears in the status bar.")
     return 0
 
 

@@ -303,6 +303,12 @@ function PandoraMenu({ ctx, state, stateError, onClose }) {
     return `Pandora backend unreachable — ${raw}`
   })()
 
+  const friendlyListError = value => {
+    const raw = value ? String(value.message || value) : ''
+    if (/Plugin not found|404/i.test(raw)) return 'Not enabled in this profile — see the note above.'
+    return raw
+  }
+
   return jsxs('div', {
     children: [
       jsx(TrackProgress, { state }),
@@ -456,8 +462,7 @@ function PandoraMenu({ ctx, state, stateError, onClose }) {
             })
           : jsx('div', {
               className: 'pandora-muted',
-              children: (stations.data && stations.data.error)
-                || (stations.error && String(stations.error.message || stations.error))
+              children: friendlyListError((stations.data && stations.data.error) || stations.error)
                 || 'No stations found'
             })),
 
