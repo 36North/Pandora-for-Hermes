@@ -279,7 +279,7 @@ reachable when it fires. Crons run with `skip_memory=True`.
 
 | Variable | Purpose |
 |---|---|
-| `PANDORA_EMAIL` / `PANDORA_PASSWORD` | Saved by `pandora login`; used for automatic re-login. Password is stored in the launch profile's `.env` (plaintext — see Security) |
+| `PANDORA_EMAIL` / `PANDORA_PASSWORD` | Saved by `pandora login`. The email stays in `.env`; the password is DPAPI-encrypted on Windows. `PANDORA_PASSWORD` in `.env` is still read as a fallback (and used verbatim on platforms without DPAPI) |
 | `PANDORA_API_BASE_URL` | Override the Pandora web API base (default `https://www.pandora.com`) |
 | `PANDORA_MPV_PATH` | Use this mpv; wins over the downloaded build |
 | `PANDORA_MPV_URL` | Portable mpv zip for `pandora setup` / first play (default: this repo's `mpv` release asset) |
@@ -293,7 +293,8 @@ reachable when it fires. Crons run with `skip_memory=True`.
 | Path | Contents |
 |---|---|
 | `<launch home>/auth.json` → `providers.pandora` | session token, device id, account |
-| `<launch home>/.env` | `PANDORA_EMAIL`, `PANDORA_PASSWORD` |
+| `<launch home>/.env` | `PANDORA_EMAIL` (metadata only) |
+| `<launch home>/plugin-data/pandora/credentials.bin` | the password, DPAPI-encrypted for your Windows user |
 | `<launch home>/plugin-data/pandora/bin/` | downloaded mpv + its licenses |
 | `<launch home>/plugin-data/pandora/diag.log` | cast/audio diagnostics (JSON lines, rotated) |
 | `<launch home>/desktop-plugins/pandora/plugin.js` | the status-bar half, copied by the app |
@@ -349,10 +350,15 @@ without it the gateway's file logging can go quiet. The plugin writes
 
 ## Security and privacy
 
-- Credentials live only on your machine: session token in `auth.json`, email and
-  password in the launch profile's `.env` (plaintext, as saved by
-  `hermes pandora login`). Treat that `.env` as a secret; `hermes pandora logout`
-  removes the session and, unless `--keep-credentials`, the saved password.
+- Credentials live only on your machine: the session token in `auth.json`, the
+  email in the launch profile's `.env`, and the password **encrypted with
+  Windows DPAPI** (`CryptProtectData`) in
+  `plugin-data/pandora/credentials.bin`. DPAPI ties the ciphertext to your
+  Windows user on this machine: another user or another PC cannot decrypt it,
+  and no key file is written. `hermes pandora status` reports
+  `Creds: dpapi` (or `env` on a platform without DPAPI, where the password falls
+  back to `.env` as before). `hermes pandora logout` removes the session and the
+  stored password.
 - The plugin talks to pandora.com directly. No telemetry, no analytics, no
   third-party service.
 - mpv is GPLv2+ and downloaded from this repository's `mpv` release; its license
