@@ -149,7 +149,7 @@ you want it opened. The session is stored in `auth.json` under `providers.pandor
 and refreshed automatically; the email stays in the launch profile's `.env` and
 the password is DPAPI-encrypted (see [Security](#security)).
 
-### 3. Restart the two surfaces
+### 4. Restart the two surfaces
 
 - **Hermes Desktop** — copies `desktop/plugin.js` into `desktop-plugins/pandora/`
   at startup (or on **Rescan**). If you installed from the *store* page, the app
