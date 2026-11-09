@@ -3,6 +3,7 @@ label: Pandora
 kind: standalone
 version: 0.3.0
 author: ChickenFingers
+license: MIT
 description: >
   Pandora (pandora.com) inside Hermes: play your stations on this PC or a Cast
   device and see the current artist and song in the desktop status bar —

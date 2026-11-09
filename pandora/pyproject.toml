@@ -1,7 +1,9 @@
 [project]
 name = "hermes-pandora"
-version = "0.1.0"
+version = "0.3.0"
 description = "Pandora music control for Hermes Agent: playback, search, stations, feedback, collections and Cast output."
+authors = [{ name = "ChickenFingers" }]
+license = { text = "MIT" }
 # Local playback drives mpv over a Windows named pipe and needs os.set_blocking,
 # which Windows only gained in Python 3.12. Hermes' bundled runtime is 3.14.
 requires-python = ">=3.12"

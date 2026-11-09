@@ -18,6 +18,8 @@ Pandora's side can break it.
 > endorsed by, or supported by Pandora. Because it uses Pandora's private web
 > API, a change on Pandora's side can break it; issues and fixes are welcome.
 
+MIT licensed — see [LICENSE](LICENSE) and [Legal](#legal).
+
 **Works on Free, Plus and Premium.** Free/Plus get stations, podcasts, search,
 thumbs and skips. On-demand songs, albums and playlists are Premium-only and
 fail with a clear message rather than a mystery error.
@@ -422,3 +424,44 @@ without it the gateway's file logging can go quiet. The plugin writes
 - mpv is GPLv2+ and downloaded from this repository's `mpv` release; its license
   and third-party notices ship beside the binary and in `pandora/bin/`.
 - Pandora is a trademark of Pandora Media, LLC. This project is unaffiliated.
+
+---
+
+## Legal
+
+**License.** MIT — see [LICENSE](LICENSE). Use, modify, redistribute and sell it;
+keep the copyright and permission notice with copies of the software. If you plan
+to sell or relicense the project, note what MIT already permits: anyone who
+receives the code may also use it commercially. A sale transfers the copyright
+(and the right to relicense future versions); it does not withdraw MIT rights
+already granted to anyone else.
+
+**Not affiliated.** Pandora is a trademark of Pandora Media, LLC. This is an
+independent client and is not affiliated with, endorsed by, sponsored by, or
+supported by Pandora. The name and the word "Pandora" are used only to say what
+the software interoperates with (nominative use); no Pandora logo, artwork or
+audio is bundled or redistributed. Audio is streamed from Pandora directly by
+your own player and is not stored by the plugin.
+
+**How it talks to Pandora.** The plugin signs in with your own account and calls
+the same private web GraphQL endpoint that pandora.com's player uses. There is no
+API key and no official partner access. Pandora's Terms of Use may not permit
+third-party clients, so using this plugin is at your own risk — including the risk
+that an account is rate-limited or actioned. The plugin does not bypass DRM or
+plan limits: on-demand playback works only when your account's plan allows it,
+and the ad items Pandora serves on ad-supported accounts are played, not stripped.
+
+**"Fair use".** Fair use is a defence in US copyright law, not a permission a
+notice can grant. What this project actually relies on is narrower and concrete:
+it does not copy or redistribute Pandora's copyrighted content, it uses the name
+only to identify compatibility, and it runs with the user's own credentials on
+their own machine. That describes the design; it is not legal advice.
+
+**mpv.** Local playback uses mpv, which is GPLv2+ and is redistributed as a
+separate portable archive from this repository's `mpv` release. Its license and
+third-party notices ship beside the binary and in `pandora/bin/`. The MIT license
+above covers this plugin, not mpv; mpv's source is available from its upstream
+project.
+
+**No warranty.** The software is provided "as is", without warranty of any kind,
+as set out in the MIT license.
