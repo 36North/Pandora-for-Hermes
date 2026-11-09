@@ -376,7 +376,7 @@ self-loads its package for this case; if you still see it, restart the gateway.
 **Login is blocked (PerimeterX / 403)** — Pandora occasionally refuses scripted
 logins. Run `hermes pandora capture`, open pandora.com signed in, and paste the
 printed snippet into the browser console; the session is handed to the plugin.
-`hermes pandora import-session --token «redacted-secret» also does the same by hand.
+`hermes pandora import-session --token <token>` does the same by hand.
 
 **"mpv is required for local playback"** — run `hermes pandora setup`, or set
 `PANDORA_MPV_PATH`. A failed download prints the URL and expected hash; override
