@@ -37,6 +37,7 @@ const CSS = `
 .pandora-sep { height: 1px; background: var(--ui-stroke-secondary); margin: 2px 0; }
 .pandora-label-sm { font-size: 0.625rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ui-text-quaternary); }
 .pandora-list { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
+.pandora-search-results { max-height: 240px; }
 .pandora-item { display: flex; align-items: center; gap: 6px; width: 100%; padding: 4px 6px; border: 0; border-radius: 4px; background: transparent; color: var(--ui-text-secondary); font-size: 0.75rem; text-align: left; cursor: pointer; }
 .pandora-item:hover { background: var(--ui-control-hover-background); color: var(--foreground); }
 .pandora-item.is-active { color: var(--foreground); font-weight: 600; }
@@ -164,7 +165,7 @@ function PandoraMenu({ ctx, state, stateError, onClose }) {
     queryKey: ['pandora', 'search', searchFor],
     queryFn: async () => {
       try {
-        return await rest(ctx, `/search?q=${encodeURIComponent(searchFor)}`)
+        return await rest(ctx, `/search?q=${encodeURIComponent(searchFor)}&limit=50`)
       } catch (err) {
         console.warn('[pandora] GET /search failed:', String(err && err.message ? err.message : err))
         throw err
@@ -374,7 +375,7 @@ function PandoraMenu({ ctx, state, stateError, onClose }) {
           ? jsx(GlyphSpinner, {})
           : (searchResults.length
             ? jsx('div', {
-                className: 'pandora-list',
+                className: 'pandora-list pandora-search-results',
                 children: searchResults.map(result => jsxs('button', {
                   type: 'button',
                   className: 'pandora-item',

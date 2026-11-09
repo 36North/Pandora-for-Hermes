@@ -347,15 +347,15 @@ def get_stations(limit: int = 10) -> dict[str, Any]:
 
 
 @router.get("/search")
-def get_search(q: str = "", limit: int = 9) -> dict[str, Any]:
+def get_search(q: str = "", limit: int = 50) -> dict[str, Any]:
     """Artists and songs matching ``q`` — the seeds a station can be built from."""
     text = (q or "").strip()
     if len(text) < 2:
         return {"ok": True, "query": text, "results": []}
-    limit = max(1, min(int(limit or 9), 20))
+    limit = max(1, min(int(limit or 50), 50))  # Pandora's search caps at 50
     try:
         client = _client_module().PandoraClient()
-        payload = client.search(text, types=["AR", "TR"], limit=limit * 2)
+        payload = client.search(text, types=["AR", "TR"], limit=limit)
     except Exception as exc:
         return {"ok": False, "error": str(exc)}
     kinds = {"Artist": "artist", "Track": "track"}
