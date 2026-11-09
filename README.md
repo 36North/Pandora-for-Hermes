@@ -9,7 +9,10 @@ search, station creation, and the full station list.
 
 It talks to Pandora through the same web GraphQL API the pandora.com player uses,
 with **your own account**. There is no API key, no OAuth app to register, and no
-third-party server in the path — your session stays on your machine.
+third-party server in the path — your session stays on your machine. This is not
+Pandora's official partner API (`developer.pandora.com`, invitation-only) and no
+official SDK; it is the web client's own endpoint, which is why a change on
+Pandora's side can break it.
 
 > This plugin is unofficial and community-maintained. It is not affiliated with,
 > endorsed by, or supported by Pandora. Because it uses Pandora's private web
@@ -113,6 +116,13 @@ the installer offers it.
 
 ### 1. Install the plugin
 
+**From the Hermes plugin store (desktop app):** open **Capabilities → Plugins**,
+find **Pandora** in the catalog, and click **Install**. The app installs it into
+the profile it is currently using, enables and activates it, and copies the
+desktop half — no restart needed.
+
+**From the CLI:**
+
 ```bash
 hermes plugins install 36North/Pandora-for-Hermes#pandora --yes-deps --enable
 ```
@@ -139,16 +149,7 @@ you want it opened. The session is stored in `auth.json` under `providers.pandor
 and refreshed automatically; the email stays in the launch profile's `.env` and
 the password is DPAPI-encrypted (see [Security](#security)).
 
-### 4. Enable the toolset (only if your profile predates the install)
-
-```bash
-hermes tools enable pandora
-```
-
-Current Hermes enables the plugin's toolset as part of install/enable. On an older
-profile whose saved toolset list has no `pandora`, this is the one-time fix.
-
-### 5. Restart the two surfaces
+### 3. Restart the two surfaces
 
 - **Hermes Desktop** — copies `desktop/plugin.js` into `desktop-plugins/pandora/`
   at startup (or on **Rescan**). If you installed from the *store* page, the app
@@ -229,17 +230,17 @@ there is none, create one from the artist's search seed and play that. Ids from
 
 ### `pandora_playback`
 
-| Action | Purpose | Premium? |
-|---|---|---|
-| `play` | Start a source (`source_id`, e.g. `ST:0:123`, `SF:16722:1360`); for a name, use `pandora_stations play` | station: no |
-| `now_playing` | Current track, artist, position, output | no |
-| `pause` / `resume` | Pause/resume the active output | no |
-| `next` | Skip (Pandora's skip limits apply) | no |
-| `previous` | Restart the current track (Pandora radio has no back-navigation) | no |
-| `replay` | Play the current track from 0:00 | no |
-| `set_volume` | `volume` 0–100 | no |
-| `seek` | `position_seconds` | no |
-| `stop` | Stop playback and clear the output | no |
+| Action | Purpose |
+|---|---|
+| `play` | Start a source (`source_id`, e.g. `ST:0:123`, `SF:16722:1360`); for a name, use `pandora_stations play` |
+| `now_playing` | Current track, artist, position, output |
+| `pause` / `resume` | Pause/resume the active output |
+| `next` | Skip (Pandora's skip limits apply) |
+| `previous` | Restart the current track (Pandora radio has no back-navigation) |
+| `replay` | Play the current track from 0:00 |
+| `set_volume` | `volume` 0–100 |
+| `seek` | `position_seconds` |
+| `stop` | Stop playback and clear the output |
 
 On-demand sources (`TR:`/`AL:`/`PL:`) require Premium; on Free/Plus, play a
 station instead or create one with `pandora_stations`.
@@ -352,6 +353,10 @@ one Pandora session and device id, so there is no per-profile login.
 
 **`hermes pandora` is not a command** — the plugin is installed but disabled.
 `hermes plugins enable pandora` (and `hermes tools enable pandora`).
+
+**The `pandora` toolset is missing from an older profile** — current Hermes adds
+the toolset during install/enable. On a profile created before the plugin existed,
+run `hermes tools enable pandora` once.
 
 **`404 {"detail":"Plugin not found"}` in the chip** — the app is running a
 profile whose `plugins.enabled` does not include `pandora`. Hermes executes a
