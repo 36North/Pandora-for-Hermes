@@ -326,10 +326,10 @@ class PandoraClient:
               id
               ... on Station {{ name }}
               ... on StationFactory {{ name }}
-              ... on Track {{ name }}
+              ... on Track {{ name duration art {{ url }} artist {{ name }} album {{ name }} }}
               ... on Album {{ name }}
               ... on Playlist {{ name }}
-              ... on Artist {{ name }}
+              ... on Artist {{ name art {{ url }} }}
             }}
           }}
         }}

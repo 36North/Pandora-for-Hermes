@@ -364,7 +364,21 @@ def get_search(q: str = "", limit: int = 50) -> dict[str, Any]:
         kind = kinds.get(str(item.get("__typename") or ""))
         if not kind or not item.get("id"):
             continue
-        results.append({"id": item.get("id"), "name": str(item.get("name") or ""), "kind": kind})
+        entry: dict[str, Any] = {"id": item.get("id"), "name": str(item.get("name") or ""),
+                                 "kind": kind}
+        art = item.get("art")
+        if isinstance(art, dict) and art.get("url"):
+            entry["art"] = str(art["url"])
+        if kind == "track":
+            artist = (item.get("artist") or {}).get("name")
+            album = (item.get("album") or {}).get("name")
+            if artist:
+                entry["artist"] = str(artist)
+            if album:
+                entry["album"] = str(album)
+            if isinstance(item.get("duration"), (int, float)):
+                entry["duration"] = int(item["duration"])
+        results.append(entry)
         if len(results) >= limit:
             break
     return {"ok": True, "query": text, "results": results}

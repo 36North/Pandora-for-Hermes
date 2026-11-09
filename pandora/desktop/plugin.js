@@ -50,7 +50,10 @@ const CSS = `
 .pandora-search { display: flex; align-items: center; gap: 4px; }
 .pandora-search input { flex: 1; min-width: 0; height: 24px; padding: 0 8px; border: 1px solid var(--ui-stroke-secondary); border-radius: 4px; background: transparent; color: var(--ui-text-primary); font-size: 0.75rem; outline: none; }
 .pandora-search input:focus { border-color: var(--ui-accent); }
-.pandora-kind { flex: none; font-size: 0.5625rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ui-text-quaternary); }
+.pandora-kind { flex: none; margin-left: auto; font-size: 0.5625rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ui-text-quaternary); }
+.pandora-item-art { flex: none; width: 24px; height: 24px; border-radius: 4px; object-fit: cover; background: var(--ui-control-hover-background); }
+.pandora-item-text { display: flex; flex-direction: column; min-width: 0; }
+.pandora-item-sub { font-size: 0.625rem; color: var(--ui-text-quaternary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 `
 
 // Hermes serves a user plugin's dashboard API only from the gateway's launch
@@ -380,14 +383,28 @@ function PandoraMenu({ ctx, state, stateError, onClose }) {
                   type: 'button',
                   className: 'pandora-item',
                   disabled: busy,
-                  title: `${result.name} — start a station`,
+                  title: `${result.name}${result.id ? ` (${result.id})` : ''} — start a station`,
                   onClick: () => startStation(result),
                   children: [
+                    result.art
+                      ? jsx('img', { className: 'pandora-item-art', src: result.art, alt: '', loading: 'lazy' })
+                      : jsx('span', { className: 'pandora-item-art' }),
+                    jsxs('span', {
+                      className: 'pandora-item-text',
+                      children: [
+                        jsx('span', { className: 'pandora-item-name', children: result.name }),
+                        (result.artist || result.album)
+                          ? jsx('span', {
+                              className: 'pandora-item-sub',
+                              children: [result.artist, result.album].filter(Boolean).join(' · ')
+                            })
+                          : null
+                      ]
+                    }),
                     jsx('span', {
                       className: 'pandora-kind',
                       children: result.kind === 'artist' ? 'Artist' : 'Song'
-                    }),
-                    jsx('span', { className: 'pandora-item-name', children: result.name })
+                    })
                   ]
                 }, result.id))
               })
