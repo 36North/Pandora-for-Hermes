@@ -2,7 +2,7 @@ name: pandora
 label: Pandora
 kind: standalone
 version: 0.3.0
-author: ChickenFingers
+author: Daniel Bow
 license: MIT
 description: >
   Pandora (pandora.com) inside Hermes: play your stations on this PC or a Cast

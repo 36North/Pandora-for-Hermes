@@ -48,7 +48,7 @@ DEFAULT_BASE_URL = "https://www.pandora.com"
 LOGIN_PATH = "/api/v1/auth/login"
 SIGNIN_URL = "https://www.pandora.com/account/sign-in"
 SIGNUP_URL = "https://www.pandora.com/account/register"
-DOCS_URL = "https://github.com/ChickenFingers/hermes-pandora"
+DOCS_URL = "https://github.com/36North/Pandora-for-Hermes"
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"

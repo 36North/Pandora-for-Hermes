@@ -1,6 +1,6 @@
 # Pandora Plugin for Hermes Agent — Project Plan
 
-Owner: ChickenFingers (danie). Built by Hermes Agent.
+Owner: Daniel Bow (danie). Built by Hermes Agent.
 Status: Phases 1–3 complete.
 Phase 1: login → search → station → real audio (verified 2026-11-06).
 Phase 2: station/playlist/collection editing + tier gating (live-verified, Free-tier
