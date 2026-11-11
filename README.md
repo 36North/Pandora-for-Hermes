@@ -198,6 +198,44 @@ note when a Premium-only row is unavailable.
 
 ---
 
+## CLI-only use (no desktop app)
+
+Everything functional works from a terminal: the agent tools, the `hermes pandora`
+commands, local playback and Cast. The status-bar chip is the only desktop-only
+piece, and the plugin does not need it.
+
+```bash
+hermes plugins install 36North/Pandora-for-Hermes#pandora --yes-deps --enable
+hermes pandora setup
+hermes pandora login
+```
+
+Then talk to the agent (`hermes`), or query state directly:
+
+```bash
+hermes pandora status
+```
+
+What you ask for is what runs — "play Vance Joy", "what's playing", "skip this",
+"thumbs down", "cast to the living room speaker". The seven tools and their
+arguments are in [Tool reference](#tool-reference).
+
+Two behaviours to know before relying on it:
+
+- **Local playback is tied to the Hermes process.** mpv runs as a child in a
+  kill-on-close job object, so quitting or killing the CLI stops the audio — a
+  deliberate guard against orphaned players. For playback that outlives a
+  terminal session, keep a long-lived process running (the desktop app or the
+  gateway). A Cast session is different: the device fetches and plays the stream
+  itself, so it can keep playing after Hermes exits, with nothing left to control
+  it.
+- **Audio plays on the machine running Hermes**, not the machine you type on.
+  Over SSH that means the sound comes out of the remote host.
+
+Windows remains the supported platform for local playback (mpv over a named pipe).
+
+---
+
 ## Casting
 
 - Devices are found over mDNS. One live `CastBrowser` is started on first use and
