@@ -73,6 +73,9 @@ capabilities:
 
 ## Disclosures to keep accurate
 
+- **Terms of Use:** this plugin uses automated access to pandora.com that may
+  violate Pandora's Terms of Use; use is at the user's own account risk. Put that
+  sentence verbatim in the PR description as well as the README.
 - **Trademarks:** PANDORA and related marks are trademarks or registered
   trademarks of Pandora Media, LLC. This plugin is independent and uses the name
   only to describe what it interoperates with; no Pandora logo or artwork is
@@ -100,16 +103,19 @@ capabilities:
 - **Profile independence (account):** login, device id, DPAPI blob and the mpv
   binary are shared across profiles via `_account_home()`, so only the code and
   the `plugins.enabled` entry are per profile.
-- **mpv is not bundled.** The package carries no executables; `hermes pandora
-  setup` (or the automatic first-play fetch) downloads a portable build into
-  `<launch home>/plugin-data/pandora/bin`, verifies the zip's SHA-256 (the
-  sibling `.sha256` asset, or `PANDORA_MPV_SHA256`) and extracts it. Publish
-  `vendor/mpv-portable.zip` + `vendor/mpv-portable.zip.sha256` as release assets
-  under tag `mpv`. `DEFAULT_MPV_URL` uses the
-  `github-release://<owner>/<repo>/<tag>/<asset>` form, which resolves the asset
-  id through the GitHub API — the browser
-  `/releases/download/...` URL 504'd during testing, while the API asset route
-  served the full 49 MB. mpv is GPLv2+; keep its license/notice in the zip and
-  in `bin/`.
+- **mpv is not bundled (catalog rule 17).** The package carries no executables;
+  `hermes pandora setup` (or the automatic first-play fetch) downloads the
+  **official upstream build** — `mpv-player/mpv` release `v0.42.0`, asset
+  `mpv-v0.42.0-x86_64-pc-windows-msvc.zip` — into
+  `<launch home>/plugin-data/pandora/bin`. `DEFAULT_MPV_SHA256` pins the archive
+  in code and is verified before extraction; `PANDORA_MPV_SHA256` overrides it and
+  `PANDORA_MPV_URL` / `PANDORA_MPV_PATH` remain the escape hatches. The
+  `github-release://owner/repo/tag/asset` form resolves the asset id through the
+  GitHub API, because the browser `/releases/download/...` URL 504'd during
+  testing while the API asset route served the file. mpv is GPLv2+ and the
+  upstream zip ships no licence text, so `LICENSE-GPL-2.0.txt` and
+  `NOTICE-third-party.txt` from `pandora/bin/` are copied beside the binary.
+  Upstream mpv publishes Windows builds only as `libmpv` plus the CLI zip used
+  here; there is no separate official installer.
 - **Still shipping the old `bin/mpv.exe`?** Don't: the install scanner flags
   bundled executables as HIGH and blocks community installs without `--force`.

@@ -18,6 +18,9 @@ Pandora's side can break it.
 > endorsed by, or supported by Pandora. Because it uses Pandora's private web
 > API, a change on Pandora's side can break it; issues and fixes are welcome.
 
+> **Terms of Use.** This plugin uses automated access to pandora.com that may
+> violate Pandora's Terms of Use; use at your own account risk.
+
 MIT licensed — see [LICENSE](LICENSE) and [Legal](#legal).
 
 **Works on Free, Plus and Premium.** Free/Plus get stations, podcasts, search,
@@ -102,10 +105,11 @@ the installer offers it.
 - A Pandora account (free signup is fine).
 - Hermes Agent **0.21.6 or newer**.
 - **mpv** for local playback. It is **not bundled** — a bundled executable trips
-  the installer's binary scan and GitHub's per-file limit. Get it one of three
-  ways:
-  - `hermes pandora setup` — downloads a checksum-verified portable build into
-    the plugin's data directory (recommended);
+  the installer's binary scan. Get it one of three ways:
+  - `hermes pandora setup` — downloads the **official** mpv build from
+    `mpv-player/mpv` (release `v0.42.0`, Windows x86_64), verifies the SHA-256
+    pinned in the code, and installs it into the plugin's data directory
+    (recommended);
   - let the plugin fetch it automatically the first time playback needs it;
   - point `PANDORA_MPV_PATH` at an mpv you already installed (or install
     `shinchiro.mpv` with winget and leave the path unset — it is found on PATH).
@@ -366,7 +370,7 @@ reachable when it fires. Crons run with `skip_memory=True`.
 | `PANDORA_EMAIL` / `PANDORA_PASSWORD` | Saved by `pandora login`. The email stays in `.env`; the password is DPAPI-encrypted on Windows. `PANDORA_PASSWORD` in `.env` is still read as a fallback (and used verbatim on platforms without DPAPI) |
 | `PANDORA_API_BASE_URL` | Override the Pandora web API base (default `https://www.pandora.com`) |
 | `PANDORA_MPV_PATH` | Use this mpv; wins over the downloaded build |
-| `PANDORA_MPV_URL` | Portable mpv zip for `pandora setup` / first play (default: this repo's `mpv` release asset) |
+| `PANDORA_MPV_URL` | Portable mpv zip for `pandora setup` / first play (default: the official `mpv-player/mpv` v0.42.0 Windows build, SHA-256 pinned in code) |
 | `PANDORA_MPV_SHA256` | Expected zip hash; a sibling `.sha256` is used when unset |
 | `PANDORA_MPV_AUTO_DOWNLOAD` | `0` disables the first-play download (use `pandora setup`) |
 
@@ -459,8 +463,8 @@ without it the gateway's file logging can go quiet. The plugin writes
   stored password.
 - The plugin talks to pandora.com directly. No telemetry, no analytics, no
   third-party service.
-- mpv is GPLv2+ and downloaded from this repository's `mpv` release; its license
-  and third-party notices ship beside the binary and in `pandora/bin/`.
+- mpv is GPLv2+ and downloaded from the official `mpv-player/mpv` release; its
+  license and third-party notices ship beside the binary and in `pandora/bin/`.
 - PANDORA and related marks belong to Pandora Media, LLC. This project is
   unaffiliated.
 

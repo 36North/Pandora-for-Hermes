@@ -26,13 +26,19 @@ import zipfile
 from pathlib import Path
 from typing import Callable, Optional
 
-# Released under the repo's `mpv` tag. Resolved through the GitHub API by tag +
-# asset name, so a re-uploaded asset (new id) keeps working.
-DEFAULT_MPV_URL = "github-release://36North/Pandora-for-Hermes/mpv/mpv-portable.zip"
+# Official upstream release (mpv-player/mpv, the builds linked from mpv.io),
+# pinned by version and checksum. Resolved through the GitHub API by tag + asset
+# name, so a re-uploaded asset (new id) keeps working.
+DEFAULT_MPV_URL = (
+    "github-release://mpv-player/mpv/v0.42.0/mpv-v0.42.0-x86_64-pc-windows-msvc.zip")
+DEFAULT_MPV_SHA256 = "8dd69cbab079086765fa5d873c09513b2834b85d146c1301718a757e8c0595ef"
 
 GITHUB_RELEASE_SCHEME = "github-release://"
 
-MPV_BINARIES = ("mpv.exe", "mpv.com", "d3dcompiler_43.dll")
+# Only mpv.exe is mandatory; the official zip also carries mpv.com and
+# vulkan-1.dll, which are copied when present.
+MPV_BINARIES = ("mpv.exe",)
+MPV_COPY_SUFFIXES = (".exe", ".com", ".dll")
 MPV_DOCS = ("LICENSE-GPL-2.0.txt", "NOTICE-third-party.txt")
 
 
@@ -128,7 +134,7 @@ def _remote_size(url: str) -> str:
     return "unknown size"
 
 
-def _expected_sha(url: str, sha_url: str = "") -> str:
+def _expected_sha(url: str, sha_url: str = "", default_sha: str = "") -> str:
     env = str(os.environ.get("PANDORA_MPV_SHA256", "") or "").strip().lower()
     if env:
         return env
@@ -142,13 +148,14 @@ def _expected_sha(url: str, sha_url: str = "") -> str:
             return text[0].lower()
     except Exception:
         pass
-    return ""
+    return default_sha.lower()
 
 
 def download(*, url: Optional[str] = None, force: bool = False,
              log: Callable[[str], None] = print) -> Path:
     """Download + extract the portable build; return the mpv.exe path."""
-    url = (url or download_url()).strip()
+    spec = (url or download_url()).strip()
+    url = spec
     if not url:
         raise MpvSetupError(
             "No mpv download URL is configured. Set PANDORA_MPV_URL to the portable "
@@ -188,7 +195,8 @@ def download(*, url: Optional[str] = None, force: bool = False,
             if not total:
                 log(f"  {done / (1024 * 1024):.1f} MB")
 
-        expected = _expected_sha(url, sha_url)
+        expected = _expected_sha(
+            url, sha_url, DEFAULT_MPV_SHA256 if spec == DEFAULT_MPV_URL else "")
         actual = _sha256(tmp_zip)
         if expected and actual != expected:
             raise MpvSetupError(
@@ -198,17 +206,33 @@ def download(*, url: Optional[str] = None, force: bool = False,
         else:
             log(f"SHA-256 (no published checksum to compare): {actual}")
 
-        with zipfile.ZipFile(tmp_zip) as archive:
-            names = {Path(n).name for n in archive.namelist()}
-            missing = [name for name in MPV_BINARIES if name not in names]
-            if missing:
-                raise MpvSetupError(f"Archive is missing {', '.join(missing)}")
-            for info in archive.infolist():
-                name = Path(info.filename).name
-                if not name or not (name in MPV_BINARIES or name in MPV_DOCS):
-                    continue
-                with archive.open(info) as src, (target / name).open("wb") as dst:
-                    shutil.copyfileobj(src, dst)
+        try:
+            with zipfile.ZipFile(tmp_zip) as archive:
+                names = {Path(n).name for n in archive.namelist()}
+                missing = [name for name in MPV_BINARIES if name not in names]
+                if missing:
+                    raise MpvSetupError(f"Archive is missing {', '.join(missing)}")
+                for info in archive.infolist():
+                    if info.is_dir():
+                        continue
+                    name = Path(info.filename).name
+                    if not name:
+                        continue
+                    if name not in MPV_DOCS and Path(name).suffix.lower() not in MPV_COPY_SUFFIXES:
+                        continue
+                    with archive.open(info) as src, (target / name).open("wb") as dst:
+                        shutil.copyfileobj(src, dst)
+
+            # The upstream zip carries no licence text; keep ours beside the binary.
+            docs_source = Path(__file__).resolve().parent / "bin"
+            for name in MPV_DOCS:
+                if not (target / name).is_file() and (docs_source / name).is_file():
+                    shutil.copy2(docs_source / name, target / name)
+        except PermissionError as exc:
+            raise MpvSetupError(
+                "mpv could not be replaced because a file is in use. Stop playback "
+                "(or close Hermes) and run `hermes pandora setup --force` again."
+            ) from exc
     finally:
         tmp_zip.unlink(missing_ok=True)
 
