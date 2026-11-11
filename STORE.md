@@ -30,6 +30,22 @@ points at a **public GitHub repo pinned to a commit**, not at a local folder.
    the open menu with stations visible — and list it under `screenshots`.
    URLs must be on a GitHub host (`raw.githubusercontent.com` is accepted).
 
+## Store message
+
+Copy this block into the catalog PR description / store listing:
+
+Your music. Your desktop. Your agents. All connected.
+
+Pandora for Hermes brings your Pandora experience directly into Hermes Desktop. Fire up a favorite station, discover something new, and keep the music flowing while you work.
+
+Everything is right where you need it. See the current song and artist in your status bar, then click the chip to control playback, skip tracks, rate songs, adjust volume, switch stations, browse recent stations, or change audio outputs. Search for an artist or song and instantly spin up a new station. If you have a Premium account, enjoy on demand playback and access to your playlists. You can even cast your music to compatible media devices on your network.
+
+But this plugin goes beyond desktop playback. Its seven built-in agent tools let Hermes interact with Pandora directly through the CLI, making it just as useful for autonomous agents and headless environments as it is for everyday desktop listening.
+
+Supports Pandora Free, Plus and Premium.
+
+Powered by mpv for local playback. The plugin can automatically download a verified portable build, or you can install it yourself using `hermes pandora setup`.
+
 ## Catalog entry (`plugin-catalog/pandora.yaml`)
 
 ```yaml
@@ -38,15 +54,9 @@ repo: https://github.com/36North/Pandora-for-Hermes
 subdir: pandora
 sha: <40-hex-commit — the pushed commit>
 description: >-
-  Unofficial Pandora (pandora.com) client for Hermes: play your stations on this PC or a Cast
-  device, see the current artist and song in the desktop status bar, and
-  left-click it for play/pause, skips, thumbs, volume, recent stations and
-  output. Search an artist or song to start a station. Works on Free and Plus;
-  on-demand songs, albums and playlists appear only when the account's plan
-  allows them. Also usable headless: the seven agent tools work from the CLI
-  with no desktop app. Local playback uses mpv, which is not bundled: `hermes
-  pandora setup` downloads a verified portable build, or the plugin fetches it on
-  first playback.
+  Unofficial Pandora client for Hermes — your music, your desktop, your agents,
+  all connected: stations, playback, thumbs, search, playlists, Cast, and seven
+  agent tools for headless use. Free, Plus and Premium.
 maintainer: 36North
 tier: community
 category: tools

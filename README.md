@@ -2,30 +2,28 @@
 
 ![Pandora in the Hermes status bar](assets/hero.jpg)
 
-Pandora (pandora.com) inside Hermes: play your stations on this PC or on a Google
-Cast / Nest device, see the current artist and song in the desktop status bar,
-and give the agent real playback tools — play, skip, restart, thumbs, volume,
-search, station creation, and the full station list.
+Your music. Your desktop. Your agents. All connected.
 
-It talks to Pandora through the same web GraphQL API the pandora.com player uses,
-with **your own account**. There is no API key, no OAuth app to register, and no
-third-party server in the path — your session stays on your machine. This is not
-Pandora's official partner API (`developer.pandora.com`, invitation-only) and no
-official SDK; it is the web client's own endpoint, which is why a change on
-Pandora's side can break it.
+Pandora for Hermes brings your Pandora experience directly into Hermes Desktop. Fire up a favorite station, discover something new, and keep the music flowing while you work.
+
+Everything is right where you need it. See the current song and artist in your status bar, then click the chip to control playback, skip tracks, rate songs, adjust volume, switch stations, browse recent stations, or change audio outputs. Search for an artist or song and instantly spin up a new station. If you have a Premium account, enjoy on demand playback and access to your playlists. You can even cast your music to compatible media devices on your network.
+
+But this plugin goes beyond desktop playback. Its seven built-in agent tools let Hermes interact with Pandora directly through the CLI, making it just as useful for autonomous agents and headless environments as it is for everyday desktop listening.
+
+Supports Pandora Free, Plus and Premium.
+
+Powered by mpv for local playback. The plugin can automatically download a verified portable build, or you can install it yourself using `hermes pandora setup`.
 
 > This plugin is unofficial and community-maintained. It is not affiliated with,
-> endorsed by, or supported by Pandora. Because it uses Pandora's private web
-> API, a change on Pandora's side can break it; issues and fixes are welcome.
+> endorsed by, or supported by Pandora. It talks to Pandora through the same web
+> API the pandora.com player uses, with your own account — no API key, no OAuth
+> app, no third-party server — and Pandora's private API can change at any time,
+> which is why a Pandora-side change can break it. Issues and fixes are welcome.
 
 > **Terms of Use.** This plugin uses automated access to pandora.com that may
 > violate Pandora's Terms of Use; use at your own account risk.
 
 MIT licensed — see [LICENSE](LICENSE) and [Legal](#legal).
-
-**Works on Free, Plus and Premium.** Free/Plus get stations, podcasts, search,
-thumbs and skips. On-demand songs, albums and playlists are Premium-only and
-fail with a clear message rather than a mystery error.
 
 ---
 
@@ -49,8 +47,11 @@ exist in a profile that has the plugin enabled:
 hermes -p <profile> plugins install 36North/Pandora-for-Hermes#pandora --yes-deps --enable
 ```
 
-The **account, credentials, mpv binary and player** are shared across profiles —
-you sign in once (see [Where things live](#where-things-live)). Only the code and
+The **mpv binary** is shared across profiles. **Credentials and the login session
+are per profile**, exactly like the official Spotify plugin — but you don't have
+to log in per profile: set `PANDORA_EMAIL`/`PANDORA_PASSWORD` once in the managed
+env layer (see [Where things live](#where-things-live)) and every profile resolves
+them from its own secret scope, signing itself in on first use. Only the code and
 the enable flag are per profile, which is how Hermes scopes plugin execution.
 
 ### From the plugin store
@@ -84,9 +85,11 @@ install there:
 hermes -p <profile> plugins install 36North/Pandora-for-Hermes#pandora --yes-deps --enable
 ```
 
-or switch the app's active profile to the one that already has Pandora. The
-account, token, DPAPI blob and mpv binary are shared, so the second install needs
-no re-login. Confirm a profile really has it:
+or switch the app's active profile to the one that already has Pandora. The mpv
+binary is shared; the login session is per profile and self-heals from the
+profile's secret scope (a profile without a saved session re-logs in
+automatically on first use when the credentials are resolvable — see
+[Where things live](#where-things-live)). Confirm a profile really has it:
 
 ```bash
 ls ~/.hermes/profiles/<profile>/plugins/pandora/plugin.yaml
@@ -152,8 +155,10 @@ hermes pandora login
 Email + password against Pandora's web login endpoint. It prints a "No account?
 Sign up" link but **never opens a browser on a plain login**; use `--signup` if
 you want it opened. The session is stored in `auth.json` under `providers.pandora`
-and refreshed automatically; the email stays in the launch profile's `.env` and
-the password is DPAPI-encrypted (see [Security](#security)).
+and refreshed automatically; `pandora login` also writes the email and password
+into the **active profile's** secret scope — its `.env`, or your external secret
+source (see [Security](#security)). For all-profiles use, put the two values in
+the managed env layer instead (see [Where things live](#where-things-live)).
 
 ### 4. Restart the two surfaces
 
@@ -367,7 +372,7 @@ reachable when it fires. Crons run with `skip_memory=True`.
 
 | Variable | Purpose |
 |---|---|
-| `PANDORA_EMAIL` / `PANDORA_PASSWORD` | Saved by `pandora login`. The email stays in `.env`; the password is DPAPI-encrypted on Windows. `PANDORA_PASSWORD` in `.env` is still read as a fallback (and used verbatim on platforms without DPAPI) |
+| `PANDORA_EMAIL` / `PANDORA_PASSWORD` | Saved by `pandora login` into the **active profile's** secret scope (`.env`, or your external secret source). Put them in the managed env layer instead and every profile shares one login |
 | `PANDORA_API_BASE_URL` | Override the Pandora web API base (default `https://www.pandora.com`) |
 | `PANDORA_MPV_PATH` | Use this mpv; wins over the downloaded build |
 | `PANDORA_MPV_URL` | Portable mpv zip for `pandora setup` / first play (default: the official `mpv-player/mpv` v0.42.0 Windows build, SHA-256 pinned in code) |
@@ -380,16 +385,19 @@ reachable when it fires. Crons run with `skip_memory=True`.
 
 | Path | Contents |
 |---|---|
-| `<launch home>/auth.json` → `providers.pandora` | session token, device id, account |
-| `<launch home>/.env` | `PANDORA_EMAIL` (metadata only) |
-| `<launch home>/plugin-data/pandora/credentials.bin` | the password, DPAPI-encrypted for your Windows user |
-| `<launch home>/plugin-data/pandora/bin/` | downloaded mpv + its licenses |
+| `<active profile>/auth.json` → `providers.pandora` | session token, device id, account — per profile (Spotify convention) |
+| `<active profile>/.env` | `PANDORA_EMAIL` + `PANDORA_PASSWORD` (written by `pandora login`) |
+| `$HERMES_MANAGED_DIR/.env` | **optional** — the same two values here serve every profile, so one login covers all of them |
+| `<launch home>/plugin-data/pandora/bin/` | downloaded mpv + its licenses (shared across profiles) |
 | `<launch home>/plugin-data/pandora/diag.log` | cast/audio diagnostics (JSON lines, rotated) |
 | `<launch home>/desktop-plugins/pandora/plugin.js` | the status-bar half, copied by the app |
 | `<launch home>/plugins/pandora/` | the installed plugin (and `dashboard/` backend) |
 
-The account is pinned to the launch home on purpose: every profile and bot shares
-one Pandora session and device id, so there is no per-profile login.
+Credentials resolve per profile through Hermes's secret scope (`.env`, any
+external secret source, and the managed env layer). A profile without a saved
+session re-logs in automatically on first use when the credentials are
+resolvable — so with the managed env set once, there is no per-profile login and
+no shared session file. Each profile gets its own Pandora "device" id.
 
 ---
 
@@ -452,15 +460,16 @@ without it the gateway's file logging can go quiet. The plugin writes
 
 ## Security and privacy
 
-- Credentials live only on your machine: the session token in `auth.json`, the
-  email in the launch profile's `.env`, and the password **encrypted with
-  Windows DPAPI** (`CryptProtectData`) in
-  `plugin-data/pandora/credentials.bin`. DPAPI ties the ciphertext to your
-  Windows user on this machine: another user or another PC cannot decrypt it,
-  and no key file is written. `hermes pandora status` reports
-  `Creds: dpapi` (or `env` on a platform without DPAPI, where the password falls
-  back to `.env` as before). `hermes pandora logout` removes the session and the
-  stored password.
+- Credentials live only on your machine and flow only through Hermes's secret
+  scope: the session token in the profile's `auth.json`, and
+  `PANDORA_EMAIL`/`PANDORA_PASSWORD` in the profile's `.env` (or an external
+  secret source you configure — the plugin reads it via `get_secret`, exactly
+  like every other Hermes plugin credential). The plugin keeps no credential
+  store of its own and never touches another profile's files. `hermes pandora
+  status` reports `Creds: env` (a `(from <source>)` suffix names an external
+  secret source). `hermes pandora logout` removes the session and the stored
+  password. For at-rest encryption, use an external secret source (e.g. a
+  Bitwarden-backed source); the value is then never written to a file at all.
 - The plugin talks to pandora.com directly. No telemetry, no analytics, no
   third-party service.
 - mpv is GPLv2+ and downloaded from the official `mpv-player/mpv` release; its

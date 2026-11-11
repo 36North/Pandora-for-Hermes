@@ -2,30 +2,28 @@
 
 ![Pandora in the Hermes status bar](../assets/hero.jpg)
 
-Pandora (pandora.com) inside Hermes: play your stations on this PC or on a Google
-Cast / Nest device, see the current artist and song in the desktop status bar,
-and give the agent real playback tools — play, skip, restart, thumbs, volume,
-search, station creation, and the full station list.
+Your music. Your desktop. Your agents. All connected.
 
-It talks to Pandora through the same web GraphQL API the pandora.com player uses,
-with **your own account**. There is no API key, no OAuth app to register, and no
-third-party server in the path — your session stays on your machine. This is not
-Pandora's official partner API (`developer.pandora.com`, invitation-only) and no
-official SDK; it is the web client's own endpoint, which is why a change on
-Pandora's side can break it.
+Pandora for Hermes brings your Pandora experience directly into Hermes Desktop. Fire up a favorite station, discover something new, and keep the music flowing while you work.
+
+Everything is right where you need it. See the current song and artist in your status bar, then click the chip to control playback, skip tracks, rate songs, adjust volume, switch stations, browse recent stations, or change audio outputs. Search for an artist or song and instantly spin up a new station. If you have a Premium account, enjoy on demand playback and access to your playlists. You can even cast your music to compatible media devices on your network.
+
+But this plugin goes beyond desktop playback. Its seven built-in agent tools let Hermes interact with Pandora directly through the CLI, making it just as useful for autonomous agents and headless environments as it is for everyday desktop listening.
+
+Supports Pandora Free, Plus and Premium.
+
+Powered by mpv for local playback. The plugin can automatically download a verified portable build, or you can install it yourself using `hermes pandora setup`.
 
 > This plugin is unofficial and community-maintained. It is not affiliated with,
-> endorsed by, or supported by Pandora. Because it uses Pandora's private web
-> API, a change on Pandora's side can break it; issues and fixes are welcome.
+> endorsed by, or supported by Pandora. It talks to Pandora through the same web
+> API the pandora.com player uses, with your own account — no API key, no OAuth
+> app, no third-party server — and Pandora's private API can change at any time,
+> which is why a Pandora-side change can break it. Issues and fixes are welcome.
 
 > **Terms of Use.** This plugin uses automated access to pandora.com that may
 > violate Pandora's Terms of Use; use at your own account risk.
 
 MIT licensed — see [LICENSE](LICENSE) and [Legal](#legal).
-
-**Works on Free, Plus and Premium.** Free/Plus get stations, podcasts, search,
-thumbs and skips. On-demand songs, albums and playlists are Premium-only and
-fail with a clear message rather than a mystery error.
 
 ---
 
