@@ -42,9 +42,10 @@ description: >-
   left-click it for play/pause, skips, thumbs, volume, recent stations and
   output. Search an artist or song to start a station. Works on Free and Plus;
   on-demand songs, albums and playlists appear only when the account's plan
-  allows them. Local playback uses mpv, which is not bundled: `hermes pandora
-  setup` downloads a verified portable build, or the plugin fetches it on first
-  playback.
+  allows them. Also usable headless: the seven agent tools work from the CLI
+  with no desktop app. Local playback uses mpv, which is not bundled: `hermes
+  pandora setup` downloads a verified portable build, or the plugin fetches it on
+  first playback.
 maintainer: 36North
 tier: community
 category: tools
@@ -73,23 +74,28 @@ capabilities:
 ## Disclosures to keep accurate
 
 - **Credentials:** the plugin logs into the user's own Pandora account with
-  email + password (`hermes pandora login`); the password is stored in the
-  profile's `.env` for silent re-login. Tokens live in `auth.json`. No
-  credentials are sent anywhere except pandora.com.
+  email + password (`hermes pandora login`). On Windows the password is
+  **DPAPI-encrypted** at `plugin-data/pandora/credentials.bin`; the email stays in
+  the launch profile's `.env`, and the session token plus the PerimeterX cookie
+  jar live in `auth.json`. DPAPI ties the ciphertext to the user account (no key
+  file, unreadable by another user or on another PC). No credentials are sent
+  anywhere except pandora.com.
 - **Platforms:** only Windows has been exercised end to end. The player uses
   mpv (all platforms) and a Windows Job Object to kill mpv with Hermes (a
   no-op elsewhere), so list `windows` until macOS/Linux are tested.
-- **Store limitation:** Hermes serves a *user* plugin's dashboard API only from
-  the gateway's **launch profile**. The status-bar menu therefore works when
-  the app's active profile is the launch profile; on a secondary profile the
-  desktop half retries against the primary connection (see `rest()` in
-  `desktop/plugin.js`). Worth mentioning in the PR so a reviewer is not
-  surprised.
-- **Profile independence:** the login is account-wide (stored in the launch
-  profile's `.env`/`auth.json`; every profile shares it), and the dashboard
-  follows whichever profile's player is playing. The *code* is installed into
-  each profile by `sync.sh` because Hermes discovers agent plugins per profile;
-  activation is still a per-profile `plugins.enabled` entry.
+- **Profile scoping:** Hermes mounts a user plugin's dashboard API per profile, so
+  the app's **active profile** must have Pandora installed and enabled — a profile
+  without it answers `404 {"detail":"Plugin not found"}` and the chip shows a
+  "not available in this profile" note. The desktop half is app-level (one copy in
+  `desktop-plugins/pandora/`). A store install lands in the active profile
+  automatically; a CLI install goes to the launch profile unless `-p` is used.
+- **Catalog rule 8:** `desktop/plugin.js` retries `window.hermesDesktop.api` when
+  `ctx.rest` returns 404. `plugins validate` flags that fallback as a "raw bridge"
+  under the SDK-surface-only rule; if a reviewer objects, delete `rest()`'s
+  fallback and use `ctx.rest` alone.
+- **Profile independence (account):** login, device id, DPAPI blob and the mpv
+  binary are shared across profiles via `_account_home()`, so only the code and
+  the `plugins.enabled` entry are per profile.
 - **mpv is not bundled.** The package carries no executables; `hermes pandora
   setup` (or the automatic first-play fetch) downloads a portable build into
   `<launch home>/plugin-data/pandora/bin`, verifies the zip's SHA-256 (the

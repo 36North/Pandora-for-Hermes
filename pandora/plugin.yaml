@@ -10,7 +10,8 @@ description: >
   left-click it for play/pause, skips, thumbs, volume, recent stations and
   output. Search an artist or song to start a station. Works on Free and Plus;
   on-demand songs, albums and playlists appear only when the account's plan
-  allows them. Local playback needs mpv, which is not bundled: run
+  allows them. Also usable headless: the seven agent tools work from the CLI with
+  no desktop app. Local playback needs mpv, which is not bundled: run
   `hermes pandora setup` to download a checksum-verified portable build, or let
   the plugin fetch it automatically the first time playback needs it. Set
   PANDORA_MPV_PATH to use an mpv you already installed instead.
