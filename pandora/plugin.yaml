@@ -31,7 +31,7 @@ optional_env:
     prompt: "Pandora account email"
     password: false
   - name: PANDORA_PASSWORD
-    description: "Pandora account password (`hermes pandora login` sets it); kept in the profile's .env"
+    description: "Pandora account password (`hermes pandora login` sets it); stored in the active profile's secret scope (.env or your secret source) — for all-profiles use, put it in the managed env layer"
     prompt: "Pandora account password"
     password: true
   - name: PANDORA_API_BASE_URL

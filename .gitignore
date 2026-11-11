@@ -4,3 +4,7 @@ __pycache__/
 .env
 auth.json
 vendor/
+*.exe
+*.dll
+*.zip
+.pytest_cache/

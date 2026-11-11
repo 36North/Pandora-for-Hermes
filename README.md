@@ -1,6 +1,6 @@
 # Pandora for Hermes
 
-![Pandora in the Hermes status bar](assets/hero.png)
+![Pandora in the Hermes status bar](assets/hero.jpg)
 
 Pandora (pandora.com) inside Hermes: play your stations on this PC or on a Google
 Cast / Nest device, see the current artist and song in the desktop status bar,

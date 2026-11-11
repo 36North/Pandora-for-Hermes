@@ -24,19 +24,30 @@ one-time sign-in in the user's real browser:
   copied from devtools (Application → Local Storage, the ``loginAuthToken``
   state key; Network → any request's ``X-CsrfToken`` header).
 
-State lives in the profile's ``auth.json`` under ``providers.pandora`` (same
-convention as the Spotify plugin); the password lives in the profile's
-``.env`` as ``PANDORA_PASSWORD`` so an expired session (Pandora's
-``inactivityTimeout`` is 14400 s = 4 h) can be renewed without prompting.
+Credentials flow ONLY through Hermes's secret scope
+(``agent.secret_scope.get_secret``): the active profile's ``.env``, any
+external secret source the user has configured, or the managed env layer
+(``$HERMES_MANAGED_DIR/.env``, ``/etc/hermes``) for all-profiles use. The
+plugin keeps no credential store of its own and never reads another
+profile's files. ``hermes pandora login`` persists the values into the
+ACTIVE profile's scope via ``hermes_cli.config.save_env_value`` (Hermes's
+own ``.env`` writer, which also refreshes the scope cache); a value placed
+in the managed layer instead is visible to every profile, so one login
+serves all of them.
+
+Session state (token, PerimeterX cookie jar, device id) lives in the ACTIVE
+profile's ``auth.json`` under ``providers.pandora`` (same convention as the
+official Spotify plugin). Because credentials resolve from the profile's
+scope, a profile with no stored session self-heals on first use: the next
+call re-logs in automatically (Pandora's ``inactivityTimeout`` is 14400 s =
+4 h).
 """
 
 from __future__ import annotations
 
 import logging
 import uuid
-from contextlib import contextmanager
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 import httpx
@@ -113,81 +124,44 @@ def capture_snippet(port: int = CAPTURE_PORT) -> str:
 
 # ── settings ────────────────────────────────────────────────────────────────
 
-@contextmanager
-def _account_home():
-    """Run auth-store work against the launch home, not the active profile.
-
-    Pandora credentials belong to the *account*, not to a bot profile: a
-    profile home is ``<root>/profiles/<name>``, and when one is active the
-    login should be shared with every other profile. Any other home (tests, a
-    custom deployment) is left untouched.
-    """
-    from hermes_constants import (
-        get_default_hermes_root, get_hermes_home,
-        reset_hermes_home_override, set_hermes_home_override)
-
-    home = Path(get_hermes_home())
-    if home.parent.name != "profiles":
-        yield
-        return
-    token = set_hermes_home_override(get_default_hermes_root())
-    try:
-        yield
-    finally:
-        reset_hermes_home_override(token)
-
-
-def _default_env_value(name: str) -> str:
-    """Read ``NAME`` from the launch home's .env (the shared credential store)."""
-    try:
-        from hermes_constants import get_default_hermes_root
-        path = get_default_hermes_root() / ".env"
-        for line in path.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, _, value = line.partition("=")
-            if key.strip() == name:
-                return value.strip().strip('"').strip("'")
-    except Exception:
-        pass
-    return ""
-
-
-def _stored_credentials() -> dict[str, Any]:
-    try:
-        from .pandora_secretstore import load
-
-        return load() or {}
-    except Exception:
-        return {}
-
-
 def _secret(name: str, default: str = "") -> str:
-    if name == "PANDORA_PASSWORD":
-        stored = str(_stored_credentials().get("password") or "").strip()
-        if stored:
-            return stored
+    """Resolve a credential through Hermes's profile secret scope.
+
+    ``get_secret`` reads the ACTIVE profile's scope only (its ``.env``, any
+    external secret source, and the managed env layer) and never another
+    profile's values. The email additionally falls back to the provider
+    state's ``username`` (non-secret metadata).
+    """
     try:
         from agent.secret_scope import get_secret
-        value = str(get_secret(name, default) or "").strip()
+
+        value = get_secret(name)
     except Exception:
-        value = ""
-    value = value or _default_env_value(name)
+        value = None
     if value:
-        return value
+        return str(value).strip()
     if name == "PANDORA_EMAIL":
-        return str(_stored_credentials().get("email") or "").strip() or default
+        value = load_state().get("username")
+        if value:
+            return str(value).strip()
     return default
 
 
 def credential_source() -> str:
-    """How the saved password is stored — never the value itself."""
-    if str(_stored_credentials().get("password") or "").strip():
-        return "dpapi"
-    if _default_env_value("PANDORA_PASSWORD"):
+    """Where the saved password resolves from — never the value itself.
+
+    ``env`` = the profile's ``.env`` / process environment; a
+    ``(from <source>)`` suffix names an external secret source; ``none`` =
+    nothing resolvable.
+    """
+    if not _secret("PANDORA_PASSWORD"):
+        return "none"
+    try:
+        from agent.secret_scope import secret_source_label
+
+        return "env" + secret_source_label("PANDORA_PASSWORD")
+    except Exception:
         return "env"
-    return "none"
 
 
 def base_url() -> str:
@@ -195,52 +169,35 @@ def base_url() -> str:
 
 
 def save_credentials(email: str, password: str) -> None:
-    """Persist credentials: email as metadata, password encrypted when possible.
+    """Persist credentials in the ACTIVE profile's Hermes secret store.
 
-    Windows DPAPI keeps the password out of ``.env`` while still readable
-    unattended for automatic re-login. Every profile shares the launch home, so
-    one login serves all of them. Without DPAPI the password stays in ``.env``
-    exactly as before.
+    ``hermes_cli.config.save_env_value`` is Hermes's own ``.env`` writer (it
+    refreshes the secret-scope cache), so the values land exactly where
+    ``get_secret`` reads them. For all-profiles use, put the same values in
+    the managed env layer (``$HERMES_MANAGED_DIR/.env``) or an external
+    secret source instead — this function never touches another profile.
     """
-    from hermes_cli.config import remove_env_value, save_env_value
+    from hermes_cli.config import save_env_value
 
-    encrypted = False
+    if email:
+        save_env_value("PANDORA_EMAIL", email)
     if password:
-        try:
-            from . import pandora_secretstore
-
-            encrypted = pandora_secretstore.save(email, password)
-        except Exception:
-            encrypted = False
-    with _account_home():
-        if email:
-            save_env_value("PANDORA_EMAIL", email)
-        if password and not encrypted:
-            save_env_value("PANDORA_PASSWORD", password)
-        elif encrypted:
-            remove_env_value("PANDORA_PASSWORD")  # migrate off the plaintext copy
+        save_env_value("PANDORA_PASSWORD", password)
 
 
 def forget_credentials(*, keep_email: bool = True) -> None:
     from hermes_cli.config import remove_env_value
 
-    try:
-        from .pandora_secretstore import clear
-
-        clear()
-    except Exception:
-        pass
-    with _account_home():
-        if not keep_email:
-            remove_env_value("PANDORA_EMAIL")
-        remove_env_value("PANDORA_PASSWORD")
+    if not keep_email:
+        remove_env_value("PANDORA_EMAIL")
+    remove_env_value("PANDORA_PASSWORD")
 
 
 # ── state (auth.json: providers.pandora) ────────────────────────────────────
 
 def load_state() -> dict[str, Any]:
     from hermes_cli.auth import _auth_store_lock, _load_auth_store, _load_provider_state
-    with _account_home(), _auth_store_lock():
+    with _auth_store_lock():
         auth_store = _load_auth_store()
         state = _load_provider_state(auth_store, PROVIDER)
     return dict(state or {})
@@ -249,7 +206,7 @@ def load_state() -> dict[str, Any]:
 def save_state(state: dict[str, Any]) -> None:
     from hermes_cli.auth import (
         _auth_store_lock, _load_auth_store, _save_auth_store, _store_provider_state)
-    with _account_home(), _auth_store_lock():
+    with _auth_store_lock():
         auth_store = _load_auth_store()
         _store_provider_state(auth_store, PROVIDER, state, set_active=False)
         _save_auth_store(auth_store)
@@ -257,7 +214,7 @@ def save_state(state: dict[str, Any]) -> None:
 
 def clear_state() -> None:
     from hermes_cli.auth import _auth_store_lock, _load_auth_store, _save_auth_store
-    with _account_home(), _auth_store_lock():
+    with _auth_store_lock():
         auth_store = _load_auth_store()
         providers = auth_store.get("providers")
         if isinstance(providers, dict):
@@ -266,7 +223,7 @@ def clear_state() -> None:
 
 
 def device_uuid() -> str:
-    """Stable per-install device id. Pandora scopes playback state to devices."""
+    """Stable per-profile device id. Pandora scopes playback state to devices."""
     state = load_state()
     existing = str(state.get("device_uuid") or "").strip()
     if existing:
@@ -276,14 +233,14 @@ def device_uuid() -> str:
 
 def _install_id() -> str:
     from hermes_constants import get_hermes_home
-    with _account_home():
-        path = get_hermes_home() / "install_id"
-        try:
-            value = path.read_text(encoding="utf-8").strip()
-            if value:
-                return value
-        except OSError:
-            pass
+
+    path = get_hermes_home() / "install_id"
+    try:
+        value = path.read_text(encoding="utf-8").strip()
+        if value:
+            return value
+    except OSError:
+        pass
     return f"{uuid.getnode():x}"
 
 
@@ -468,7 +425,7 @@ def login(username: str, password: str, *, timeout: float = 30.0) -> dict[str, A
 
 
 def relogin(*, timeout: float = 30.0) -> dict[str, Any]:
-    """Renew the session from credentials saved in .env (no prompt).
+    """Renew the session from credentials in the profile's secret scope (no prompt).
 
     Sessions expire after Pandora's inactivityTimeout (~4 h), so this runs
     whenever a 401 hits. A masked/placeholder password (e.g. ``***``) is
@@ -479,8 +436,10 @@ def relogin(*, timeout: float = 30.0) -> dict[str, Any]:
     password = _secret("PANDORA_PASSWORD")
     if not email or not password:
         raise PandoraAuthRequiredError(
-            "Pandora session expired and no saved credentials were found. "
-            "Run `hermes pandora login` to sign in again.",
+            "Pandora session expired and no saved credentials were found in this "
+            "profile's secret scope. Run `hermes pandora login` here, or put "
+            "PANDORA_EMAIL/PANDORA_PASSWORD in the managed env layer to cover "
+            "all profiles.",
             code="pandora_relogin_credentials_missing", relogin_required=True)
     if password.strip() in {"***", "REDACTED"}:
         raise PandoraAuthRequiredError(
