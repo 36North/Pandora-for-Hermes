@@ -461,7 +461,8 @@ without it the gateway's file logging can go quiet. The plugin writes
   third-party service.
 - mpv is GPLv2+ and downloaded from this repository's `mpv` release; its license
   and third-party notices ship beside the binary and in `pandora/bin/`.
-- Pandora is a trademark of Pandora Media, LLC. This project is unaffiliated.
+- PANDORA and related marks belong to Pandora Media, LLC. This project is
+  unaffiliated.
 
 ---
 
@@ -474,12 +475,16 @@ receives the code may also use it commercially. A sale transfers the copyright
 (and the right to relicense future versions); it does not withdraw MIT rights
 already granted to anyone else.
 
-**Not affiliated.** Pandora is a trademark of Pandora Media, LLC. This is an
-independent client and is not affiliated with, endorsed by, sponsored by, or
-supported by Pandora. The name and the word "Pandora" are used only to say what
-the software interoperates with (nominative use); no Pandora logo, artwork or
-audio is bundled or redistributed. Audio is streamed from Pandora directly by
-your own player and is not stored by the plugin.
+**Trademarks.** PANDORA and related marks are trademarks or registered trademarks
+of Pandora Media, LLC. All other trademarks are the property of their respective
+owners.
+
+**Not affiliated.** This is an independent client and is not affiliated with,
+endorsed by, sponsored by, or supported by Pandora. The name and the word
+"Pandora" are used only to say what the software interoperates with (nominative
+use); no Pandora logo, artwork or audio is bundled or redistributed. Audio is
+streamed from Pandora directly by your own player and is not stored by the
+plugin.
 
 **How it talks to Pandora.** The plugin signs in with your own account and calls
 the same private web GraphQL endpoint that pandora.com's player uses. There is no

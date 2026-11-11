@@ -73,6 +73,10 @@ capabilities:
 
 ## Disclosures to keep accurate
 
+- **Trademarks:** PANDORA and related marks are trademarks or registered
+  trademarks of Pandora Media, LLC. This plugin is independent and uses the name
+  only to describe what it interoperates with; no Pandora logo or artwork is
+  bundled.
 - **Credentials:** the plugin logs into the user's own Pandora account with
   email + password (`hermes pandora login`). On Windows the password is
   **DPAPI-encrypted** at `plugin-data/pandora/credentials.bin`; the email stays in
