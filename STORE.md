@@ -123,6 +123,16 @@ capabilities:
   state lives in each profile's `auth.json` and self-heals via automatic
   re-login — with the managed env set once, there is no per-profile login. The
   mpv binary remains shared in the launch home's plugin-data.
+- **Catalog rule 9 (private core imports):** the session state is persisted in
+  `auth.json` under `providers.pandora` via `hermes_cli.auth` (the same
+  provider-state convention the official Spotify plugin uses; there is no
+  public plugin API for a third-party session token, and rule 11 forbids a
+  plugin-owned credential store). `plugins validate` flags the `hermes_cli.auth`
+  imports; disclose them in the PR. Read/clear go through the public helpers
+  (`get_provider_auth_state`, `clear_provider_auth`); the one write seam is
+  `_provider_state_transaction` + `_save_provider_state_to_source`, which writes
+  back to the store the state was read from and never touches
+  `active_provider`.
 - **mpv is not bundled (catalog rule 17).** The package carries no executables;
   `hermes pandora setup` (or the automatic first-play fetch) downloads the
   **official upstream build** — `mpv-player/mpv` release `v0.42.0`, asset

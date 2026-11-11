@@ -196,30 +196,24 @@ def forget_credentials(*, keep_email: bool = True) -> None:
 # ── state (auth.json: providers.pandora) ────────────────────────────────────
 
 def load_state() -> dict[str, Any]:
-    from hermes_cli.auth import _auth_store_lock, _load_auth_store, _load_provider_state
-    with _auth_store_lock():
-        auth_store = _load_auth_store()
-        state = _load_provider_state(auth_store, PROVIDER)
-    return dict(state or {})
+    from hermes_cli.auth import get_provider_auth_state
+    return dict(get_provider_auth_state(PROVIDER) or {})
 
 
 def save_state(state: dict[str, Any]) -> None:
-    from hermes_cli.auth import (
-        _auth_store_lock, _load_auth_store, _save_auth_store, _store_provider_state)
-    with _auth_store_lock():
-        auth_store = _load_auth_store()
-        _store_provider_state(auth_store, PROVIDER, state, set_active=False)
-        _save_auth_store(auth_store)
+    # No public provider-state writer exists; this is the same seam the official
+    # Spotify plugin uses. The transaction yields the store the state was read
+    # from (profile, or the global-root fallback) and the write keeps
+    # active_provider untouched.
+    from hermes_cli.auth import _provider_state_transaction, _save_provider_state_to_source
+
+    with _provider_state_transaction(PROVIDER) as (auth_store, _current, source_path):
+        _save_provider_state_to_source(auth_store, PROVIDER, state, source_path)
 
 
 def clear_state() -> None:
-    from hermes_cli.auth import _auth_store_lock, _load_auth_store, _save_auth_store
-    with _auth_store_lock():
-        auth_store = _load_auth_store()
-        providers = auth_store.get("providers")
-        if isinstance(providers, dict):
-            providers.pop(PROVIDER, None)
-        _save_auth_store(auth_store)
+    from hermes_cli.auth import clear_provider_auth
+    clear_provider_auth(PROVIDER)
 
 
 def device_uuid() -> str:
