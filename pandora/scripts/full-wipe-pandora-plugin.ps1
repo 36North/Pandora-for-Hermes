@@ -157,7 +157,10 @@ foreach ($dir in @((Join-Path $root 'plugin-data\pandora'),
     try { Remove-Item -LiteralPath $item.FullName -Recurse -Force }
     catch { $leftovers += $item.FullName }
   }
-  try { Remove-Item -LiteralPath $dir -Force } catch { }
+  # -Recurse here (and never interactively): the children were already
+  # attempted individually above, so only locked stragglers can remain, and a
+  # prompt-less attempt on them simply fails into the catch below.
+  try { Remove-Item -LiteralPath $dir -Recurse -Force } catch { }
   if (-not (Test-Path -LiteralPath $dir)) { Write-Host "  deleted $dir" }
 }
 if ($leftovers.Count -gt 0) {
