@@ -189,7 +189,7 @@ Install: copy `pandora/` into `~\AppData\Local\hermes\plugins\pandora`,
 
 Source tree: `C:\Users\danie\pandora-plugin` (`pandora/` package, `tests/`, `PLAN.md`).
 
-Live installs (synced via `bash C:\Users\danie\pandora-plugin\sync.sh`, which copies
+Live installs (synced via `bash scripts/dev-sync.sh`, which copies
 into BOTH):
 - `C:\Users\danie\AppData\Local\hermes\plugins\pandora` (default profile)
 - `C:\Users\danie\AppData\Local\hermes\profiles\rob\plugins\pandora` (rob profile)
@@ -207,7 +207,7 @@ as the Spotify plugin). Credentials/session state therefore live in
 logs in from a plain terminal (default profile) instead, mirror the `PANDORA_*`
 lines into the rob `.env` afterwards.
 
-Tests (2026-11-06): `cd ~/pandora-plugin && PYTHONPATH="C:/Users/danie/AppData/Local/hermes/hermes-agent" python3 -m pytest tests -q`
+Tests (2026-11-06): `cd ~/pandora-plugin && PYTHONPATH="<path-to-hermes-agent>" python3 -m pytest tests -q`
 → **41 passed** (31 before Phase 2 editing; 10 new tool tests). Notes: use python3
 (3.13, WindowsApps) + hermes-agent SOURCE on PYTHONPATH — the hermes venv python
 lacks pytest; `ruamel.yaml` was pip-installed to python3.13's user site for the
@@ -341,7 +341,7 @@ Pending (next actions, in order):
     - `plugin.yaml` provides_tools: added `pandora_playlists` (fixes the doctor
       WARN "registration adds tool 'pandora_playlists' not listed in
       provides_tools").
-    - `sync.sh` now also copies `README.md` and `skills/` to both live installs;
+    - `scripts/dev-sync.sh` now also copies `README.md` and `skills/` to both live installs;
       README gained a "Playback policy" section.
     - PITFALL (cost ~20 min): plugin-bundled skill frontmatter validation
       (`_valid_skill_frontmatter` / diagnostics in `hermes_cli/agent_plugins.py`)
@@ -380,3 +380,45 @@ Pending (next actions, in order):
       long-lived tool process (stale in-process state). OPEN: `SkipResponse`
       projection fix not yet applied to `pandora_client.py` (see scratch probes
       in the rob profile cache).
+10. Release hygiene + chip diagnostics 2026-11-12 (pre-publication pass):
+    - No profile coupling anywhere in the package: greps for a profile name,
+      `C:\Users`, `AppData` and `/profiles` path building return nothing under
+      `pandora/**`; home resolution stays on `get_hermes_home()`,
+      `get_default_hermes_root()` and `get_provider_auth_state()` (whose store
+      already falls back from the profile to the global root). The only
+      personal strings left in the tree were documentation.
+    - README (repo root and the shipped `pandora/README.md`) 404 explanation
+      now says "when the app runs a named profile" instead of one person's
+      profile name; PLAN.md's test command uses
+      `PYTHONPATH="<path-to-hermes-agent>"`.
+    - `sync.sh` → `scripts/dev-sync.sh`: DEV-HELPER header (not for end users),
+      repo root derived from `${BASH_SOURCE[0]}`, `SRC`/`ROOT` from
+      `PANDORA_DEV_TREE` / `HERMES_ROOT` with Windows-then-`~/.hermes`
+      autodetect (exit 2 with a message when neither exists), skips
+      dot/tombstone profile dirs, and warns before overwriting a target that
+      carries `.hermes-origin.json` / `.hermes-catalog.json` provenance.
+      `bash -n` clean; guards exercised with a bogus `PANDORA_DEV_TREE`
+      (exit 2, nothing written) and with `HERMES_ROOT` overridden.
+    - Desktop half: the 404 banner now names the profile the request was
+      scoped to and prints the exact fix. `host.state.profile` ("profile the
+      live gateway is routed to" — the scope `ctx.rest` carries) feeds
+      `notInstalledMessage(profile)`, kept pure between
+      `BEGIN/END not-installed-message` markers so it tests without the app.
+      List rows reworded to `Not available in profile "<name>"`. Empty
+      profile → no `-p` flag (asserted, not assumed). Verified with a node
+      harness over 5 profile cases plus an ESM `node --check`; the renderer
+      loads the file with no load failure in `logs/desktop.log`.
+    - PITFALL (the release trap): a user plugin's dashboard API is mounted per
+      profile while the desktop chip is app-level, so
+      `hermes plugins install` without `-p` lands in the launch (default) home
+      and the chip answers 404 in the profile the app actually runs. Store
+      installs target the active profile and are unaffected; CLI users must
+      pass `-p <their profile>`. Proven route state after a correct install:
+      `GET /api/plugins/pandora/state` → 200 with `logged_in: true`, `volume:
+      70`, real stations — verified by mounting `dashboard/plugin_api.py`
+      under a throwaway dashboard with `HERMES_DASHBOARD_SESSION_TOKEN`
+      (gateway tickets are purpose-bound and not mintable from the CLI).
+    - PITFALL: `hermes plugins validate <dir>` is NOT read-only in this
+      install — it ran a source-update dependency pass, stopped the running
+      desktop app to free the build output and rebuilt it. Don't run it
+      mid-session; a rebuild restarts the app under you.

@@ -76,7 +76,7 @@ in every profile. The **backend** (`/api/plugins/pandora/*`) is mounted per
 profile. A profile without the Pandora package answers
 `404 {"detail":"Plugin not found"}` and the chip shows the *"not available in
 this profile"* banner — that is exactly what it looks like when the app runs
-`tinker` but the plugin was installed into the default home.
+a named profile but the plugin was installed into the default home.
 
 Find the app's profile (desktop log line `gateway-route ... profile=<name>`), then
 install there:

@@ -11,8 +11,10 @@ import {
   PopoverContent,
   PopoverTrigger,
   STATUSBAR_AREAS,
+  host,
   useQuery,
-  useQueryClient
+  useQueryClient,
+  useValue
 } from '@hermes/plugin-sdk'
 import { useEffect, useRef, useState } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
@@ -77,6 +79,21 @@ async function rest(ctx, path, opts = {}) {
     })
   }
 }
+
+// Pure on purpose (no SDK, no React) so it can be exercised without the app:
+// the 404 banner has to name the profile the request was actually scoped to,
+// because "install or enable Pandora here" is useless without knowing where
+// "here" is when the desktop app runs a named profile.
+// BEGIN not-installed-message
+function notInstalledMessage(profile) {
+  const name = String(profile || '').trim()
+  const where = name ? `profile "${name}"` : 'this profile'
+  const command = name
+    ? `hermes -p ${name} plugins install 36North/Pandora-for-Hermes#pandora --yes-deps --enable`
+    : 'hermes plugins install 36North/Pandora-for-Hermes#pandora --yes-deps --enable'
+  return `Pandora's backend is not installed in ${where}. The chip is app-wide, but its backend runs only in the profile that has the package — install it here: ${command} — or switch the app to a profile that already has Pandora.`
+}
+// END not-installed-message
 
 function iconButton(name, label, onClick, disabled) {
   return jsx(Button, {
@@ -180,6 +197,9 @@ function TrackProgress({ state }) {
 
 function PandoraMenu({ ctx, state, stateError, onClose }) {
   const queryClient = useQueryClient()
+  // The profile the backend request is scoped to: the 404 banner names it so
+  // the install command it suggests is the right one for this app.
+  const activeProfile = useValue(host.state.profile) || ''
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [showOutput, setShowOutput] = useState(false)
@@ -297,15 +317,17 @@ function PandoraMenu({ ctx, state, stateError, onClose }) {
   const errorText = (() => {
     if (!stateError) return ''
     const raw = String(stateError.message || stateError)
-    if (/404|not found/i.test(raw)) {
-      return `Pandora is not available in this profile. Hermes runs a user plugin's backend only in the profile that installed it — install or enable Pandora here (\`hermes plugins enable pandora\`), or switch to the profile that has it.`
-    }
+    if (/404|not found/i.test(raw)) return notInstalledMessage(activeProfile)
     return `Pandora backend unreachable — ${raw}`
   })()
 
   const friendlyListError = value => {
     const raw = value ? String(value.message || value) : ''
-    if (/Plugin not found|404/i.test(raw)) return 'Not enabled in this profile — see the note above.'
+    if (/Plugin not found|404/i.test(raw)) {
+      return activeProfile
+        ? `Not available in profile "${activeProfile}" — see the note above.`
+        : 'Not enabled in this profile — see the note above.'
+    }
     return raw
   }
 
