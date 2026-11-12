@@ -23,9 +23,13 @@
   Skip the confirmation prompt.
 
 .NOTES
-  Requires Windows PowerShell 5.1+. Close Hermes Desktop before running (a
-  running gateway keeps plugin files open; the CLI parks those trees and the
-  next start finishes the delete).
+  Requires Windows PowerShell 5.1+. This script ships inside the plugin (its
+  scripts\ folder), so anyone who installed the plugin has it; run the copy
+  from the installed plugin folder. That is safe: PowerShell loads the whole
+  script into memory before executing, so it keeps running even after the
+  plugin tree (and this file) is deleted during the final step. Close Hermes
+  Desktop before running (a running gateway keeps plugin files open; the CLI
+  parks those trees and the next start finishes the delete).
 #>
 param([switch]$Yes)
 

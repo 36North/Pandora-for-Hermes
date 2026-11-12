@@ -46,7 +46,7 @@ Supports Pandora Free, Plus and Premium.
 
 Powered by mpv for local playback. The plugin can automatically download a verified portable build, or you can install it yourself using `hermes pandora setup`.
 
-Install from the plugin store (Capabilities → Plugins) or via the CLI (`hermes plugins install pandora`). Uninstall with the plugin's trash icon in Capabilities → Plugins (or `hermes plugins remove pandora`) — by design that keeps your saved login so a reinstall starts signed in. To also delete your Pandora credentials, the saved session and the downloaded mpv build, run the `full-wipe-pandora-plugin.ps1` script from this repository's `scripts/` folder.
+Install from the plugin store (Capabilities → Plugins) or via the CLI (`hermes plugins install pandora`). Uninstall with the plugin's trash icon in Capabilities → Plugins (or `hermes plugins remove pandora`) — by design that keeps your saved login so a reinstall starts signed in. To also delete your Pandora credentials, the saved session and the downloaded mpv build, run the bundled `full-wipe-pandora-plugin.ps1` (in the plugin's `scripts\` folder).
 
 ## Catalog entry (`plugin-catalog/pandora.yaml`)
 
