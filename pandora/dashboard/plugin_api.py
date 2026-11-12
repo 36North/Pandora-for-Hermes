@@ -516,3 +516,31 @@ def post_output(body: dict[str, Any]) -> dict[str, Any]:
         return {"ok": True, "state": _state_now(force=True)}
     except Exception as exc:
         return {"ok": False, "error": str(exc)}
+
+
+@router.post("/shutdown")
+def post_shutdown() -> dict[str, Any]:
+    """Full teardown for app exit: stop playback and kill the mpv child
+    process (and its kill-on-close job).
+
+    The desktop chip fires this fire-and-forget when the app closes, because
+    the job is owned by the *gateway* process, which outlives the desktop
+    window — without this hook, closing the app leaves the music playing.
+    ``player.stop()`` would only silence mpv (the process keeps running), so
+    this calls ``player.shutdown()``: it sends ``quit``, terminates the
+    process and closes the job, which also kills any straggler inside it.
+    The login session survives; the next start resumes as usual.
+    """
+    try:
+        player = _player()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+    try:
+        player.shutdown()
+    except Exception as exc:
+        log.debug("pandora shutdown failed: %s", exc)
+        return {"ok": False, "error": str(exc)}
+    _state_cache.update(at=0.0, value=None)
+    return {"ok": True}

@@ -422,3 +422,22 @@ Pending (next actions, in order):
       install — it ran a source-update dependency pass, stopped the running
       desktop app to free the build output and rebuilt it. Don't run it
       mid-session; a rebuild restarts the app under you.
+11. Kill-on-close across app exit 2026-11-12:
+    - The full uninstall exposed the gap: mpv's kill-on-close job is owned by
+      the GATEWAY process, which outlives the Desktop window, so closing the
+      app left an idle `mpv.exe` alive and a full wipe stranded on its locked
+      files. Closing the app must kill the player; shipped:
+      a) Desktop half: `register()` listens for `pagehide`/`beforeunload` and
+         fires a fire-and-forget `POST /shutdown` (never awaited — the
+         renderer dies right after; Chromium's network service still hands
+         the request to the gateway, a separate process).
+      b) Backend: new `POST /api/plugins/pandora/shutdown` calls
+         `player.shutdown()` — `stop()` alone only silences mpv and leaves
+         the process running — and invalidates the state cache. The 503 for a
+         process without the plugin propagates unchanged; a teardown error
+         is reported as `{"ok": false}` instead of raised.
+      c) Wipe script: stops the plugin's own mpv (matched by exe path under
+         `plugin-data\pandora\bin`) before deleting, so it can never strand
+         the three locked files again.
+    - Tests: 4 new in `tests/test_dashboard_shutdown.py` (teardown called,
+      cache invalidated, 503 propagated, failure reported).

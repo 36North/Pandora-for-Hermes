@@ -560,6 +560,30 @@ export default {
     style.dataset.plugin = ID
     document.head.append(style)
     ctx.onDispose(() => style.remove())
+    // Kill-on-close, renderer half: mpv's kill-on-close job is owned by the
+    // gateway process, which outlives this window, so an ordinary close would
+    // leave the music playing with no chip to stop it. The renderer is torn
+    // down right after this fires, so the request is dispatched and never
+    // awaited: Chromium's network service hands it to the browser process, and
+    // the gateway — a separate, still-running process — receives it and kills
+    // the mpv child. pagehide + beforeunload cover the close paths Chromium
+    // uses; the flag turns the double-fire into a single request.
+    let exitStopSent = false
+    const stopOnExit = () => {
+      if (exitStopSent) return
+      exitStopSent = true
+      try {
+        rest(ctx, '/shutdown', { method: 'POST', body: {} }).catch(() => {})
+      } catch {
+        // The renderer is going away with it — nothing left to do.
+      }
+    }
+    window.addEventListener('pagehide', stopOnExit)
+    window.addEventListener('beforeunload', stopOnExit)
+    ctx.onDispose(() => {
+      window.removeEventListener('pagehide', stopOnExit)
+      window.removeEventListener('beforeunload', stopOnExit)
+    })
     ctx.register({
       id: 'now-playing',
       area: STATUSBAR_AREAS.right,

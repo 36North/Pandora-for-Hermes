@@ -120,6 +120,11 @@ The chip is injected by the desktop plugin half and polls the backend every 5 s.
     a station from any of them.
   - **Output** — `This PC` plus every Cast device found; the one in use is bold.
     Switching output keeps the current song and its position (see below).
+  - **Closing the app stops the music** — on exit the chip fires the backend's
+    `/shutdown`, which kills the mpv child process (and its kill-on-close job).
+    The job is owned by the gateway process, which can outlive the window;
+    without this hook, closing the app would leave a player running with
+    nothing to drive it.
 
 The menu no longer shows which plan the account is on; it only shows a capability
 note when a Premium-only row is unavailable.
@@ -148,10 +153,11 @@ Two behaviours to know before relying on it:
 - **Local playback is tied to the Hermes process.** mpv runs as a child in a
   kill-on-close job object, so quitting or killing the CLI stops the audio — a
   deliberate guard against orphaned players. For playback that outlives a
-  terminal session, keep a long-lived process running (the desktop app or the
-  gateway). A Cast session is different: the device fetches and plays the stream
-  itself, so it can keep playing after Hermes exits, with nothing left to control
-  it.
+  terminal session, keep a bare `hermes gateway` running headless: the desktop
+  app keeps playback alive only while it is open, because its exit hook stops
+  it (see [The desktop status bar](#the-desktop-status-bar)). A Cast session is
+  different: the device fetches and plays the stream itself, so it can keep
+  playing after Hermes exits, with nothing left to control it.
 - **Audio plays on the machine running Hermes**, not the machine you type on.
   Over SSH that means the sound comes out of the remote host.
 
