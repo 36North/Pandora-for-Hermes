@@ -29,7 +29,9 @@
   script into memory before executing, so it keeps running even after the
   plugin tree (and this file) is deleted during the final step. Close Hermes
   Desktop before running (a running gateway keeps plugin files open; the CLI
-  parks those trees and the next start finishes the delete).
+  parks those trees and the next start finishes the delete). If it was still
+  running, some files (a playing mpv.exe, an open diag.log) can survive; the
+  script reports them and is safe to re-run once Hermes is closed.
 #>
 param([switch]$Yes)
 
@@ -140,16 +142,28 @@ if (Test-Path -LiteralPath $managed) {
   }
 }
 
+# Best effort: a running Hermes (a playing mpv.exe, an open diag.log) locks
+# individual files, and Windows refuses to delete or even open them. Delete
+# item by item deepest-first so one locked file cannot strand the rest of the
+# tree; anything that survives is reported for a re-run. The script is
+# idempotent, so re-running it after closing Hermes finishes the job.
+$leftovers = @()
 foreach ($dir in @((Join-Path $root 'plugin-data\pandora'),
                    (Join-Path $root 'desktop-plugins\pandora'))) {
-  if (Test-Path -LiteralPath $dir) {
-    try {
-      Remove-Item -LiteralPath $dir -Recurse -Force
-      Write-Host "  deleted $dir"
-    } catch {
-      Write-Warning "could not delete $dir (close Hermes and re-run): $_"
-    }
+  if (-not (Test-Path -LiteralPath $dir)) { continue }
+  $items = @(Get-ChildItem -LiteralPath $dir -Recurse -ErrorAction SilentlyContinue |
+             Sort-Object { $_.FullName.Length } -Descending)
+  foreach ($item in $items) {
+    try { Remove-Item -LiteralPath $item.FullName -Recurse -Force }
+    catch { $leftovers += $item.FullName }
   }
+  try { Remove-Item -LiteralPath $dir -Force } catch { }
+  if (-not (Test-Path -LiteralPath $dir)) { Write-Host "  deleted $dir" }
+}
+if ($leftovers.Count -gt 0) {
+  Write-Warning ("{0} item(s) survived - a running Hermes (mpv playback, open log) holds them." -f $leftovers.Count)
+  Write-Warning 'Close Hermes Desktop and re-run this script (it is idempotent), or delete them by hand:'
+  foreach ($left in $leftovers) { Write-Warning "  $left" }
 }
 
 # Uninstall the code from every home. The CLI is what removes the tree and the
