@@ -368,6 +368,31 @@ reachable when it fires. Crons run with `skip_memory=True`.
 
 ---
 
+## Uninstall
+
+**Desktop:** Capabilities → Plugins → pick the profile you installed into → the
+**trash** icon next to **Pandora for Hermes** → confirm. That removes the
+plugin, its install record and the status-bar half. The on/off switch beside it
+only disables the plugin — the files stay.
+
+**CLI:** `hermes plugins remove pandora` — one home at a time (the profile
+selector in that same panel shows which profile has it).
+
+Uninstalling deliberately keeps your saved login and the downloaded mpv build,
+so reinstalling starts where you left off. To remove **everything** — the saved
+session (`providers.pandora` in `auth.json`), the `PANDORA_*` values in `.env`
+and the managed env layer, `plugin-data\pandora` (mpv, ~120 MB) and the desktop
+half — close Hermes Desktop and run [`scripts/full-wipe.ps1`](scripts/full-wipe.ps1)
+from a plain PowerShell window (download it from this repository first if you
+installed from the catalog):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\full-wipe.ps1
+```
+
+It asks for confirmation, backs up every file it edits (`.bak-<timestamp>`), and
+then uninstalls the plugin from every profile on the machine.
+
 ## Configuration
 
 | Variable | Purpose |
