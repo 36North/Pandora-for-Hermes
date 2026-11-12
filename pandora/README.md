@@ -29,107 +29,38 @@ MIT licensed — see [LICENSE](LICENSE) and [Legal](#legal).
 
 ## Setup
 
-> **Desktop app on a named profile?** Prefix every command below with
-> `-p <profile>` (`hermes -p rob plugins install …`, `hermes -p rob pandora
-> setup`, `hermes -p rob pandora login`). Without it, every step lands in the
-> default (launch) profile — the code and the login exist there, but the app
-> never talks to it, and the chip reports the backend as "not installed in"
-> your profile.
+Plugins install **per profile**: the agent tools and the chip's backend exist only in a profile where the plugin is enabled.
 
-### Install the plugin — three ways
+> **Desktop app on a named profile?** Add `-p <profile>` to every command below, so the plugin lands in the profile the app runs.
 
-Plugins are installed **per profile**: the agent tools and the chip's backend
-exist only in a profile that has the plugin enabled, while the status-bar half
-is app-level (see [Which profile the chip talks to](#which-profile-the-chip-talks-to)).
-Pick the method that fits how you like to install:
+### 1. Store
 
-**1. The Hermes plugin store** — once Pandora is listed in the catalog, open
-**Capabilities → Plugins**, find **Pandora**, and click **Install**. The app
-installs it into the profile it is currently using — the same profile your
-chat runs as — enables and activates it immediately, and copies and enables
-the status-bar half. No restart, no profile juggling.
+Install **Pandora** from **Capabilities → Plugins** in Hermes Desktop. The app installs the plugin into the profile it is running and adds the status-bar chip immediately.
 
-**2. The CLI, from GitHub:**
+```bash
+hermes pandora setup     # optional: pre-fetch the SHA-256-verified mpv build (shared across profiles)
+hermes pandora login     # sign in to Pandora with your email + password
+```
+
+### 2. CLI only
 
 ```bash
 hermes plugins install 36North/Pandora-for-Hermes#pandora --yes-deps --enable
+hermes pandora setup
+hermes pandora login
 ```
 
-That is the `owner/repo#subdir` form while the plugin is distributed from its
-own repository; once it is listed in the Hermes plugin catalog the same
-install is `hermes plugins install pandora`. This targets the launch (default)
-profile unless you pass `-p <profile>`, and a git-source install follows the
-repository's default branch (`--ref <40-hex>` pins one commit).
+Install the plugin (with its `pychromecast` dependency) and mpv, then sign in to Pandora. The seven agent tools then work from the terminal and with the agent — no desktop app required (see [CLI-only use](#cli-only-use-no-desktop-app)).
 
-**3. Hermes Desktop, from GitHub** — the same **Capabilities → Plugins**
-dialog accepts a Git source: paste `36North/Pandora-for-Hermes#pandora` (or
-the repository URL) and install. It does the work of method 2 — clone, Python
-dependencies, enable — but against the app's active profile, and, like a
-store install, the app also copies and enables the status-bar half, so there
-is no separate restart step.
-
-### Then, whichever method you used
-
-1. **Get mpv** — `hermes pandora setup` downloads the official, SHA-256-verified
-   portable build into `<launch home>/plugin-data/pandora/bin` (the binary is
-   shared across profiles). Skip it if you like — the first playback fetches
-   it in the background unless `PANDORA_MPV_AUTO_DOWNLOAD=0` — or point
-   `PANDORA_MPV_PATH` at an mpv you already have. All the options:
-   [Prerequisites](#prerequisites).
-2. **Sign in** — `hermes pandora login` (email + password against Pandora's web
-   login endpoint). It prints a "No account? Sign up" link but **never opens
-   a browser on a plain login**; use `--signup` if you want it opened. The
-   session is stored in `auth.json` under `providers.pandora` and refreshed
-   automatically; `pandora login` also writes the email and password into the
-   **active profile's** secret scope — its `.env`, or your external secret
-   source (see [Security](#security)). You don't have to log in per profile:
-   put the two values in the managed env layer once (see
-   [Where things live](#where-things-live)) and every profile signs itself in
-   on first use.
-3. **Activate a CLI install (method 2 only)** — methods 1 and 3 are live
-   immediately. A CLI install needs: the desktop app restarted once (or
-   **Rescan** in Capabilities → Plugins) so the status-bar half is copied; the
-   **Pandora** entry enabled in that same panel, because the desktop half is
-   an opt-in toggle and copying the file alone does not show the chip; and
-   the gateway of the profile that has the plugin restarted, so the backend
-   route (`/api/plugins/pandora/*`) and any Python dependency (`pychromecast`)
-   installed during enable load at startup. Bare `hermes gateway restart`
-   restarts the *launch (default) profile's* gateway — if your desktop app
-   runs a named profile, restarting the app does it for you, or run
-   `hermes -p <profile> gateway restart`. The enable command tells you when a
-   restart is required.
-
-### Which profile the chip talks to
-
-The desktop half is **app-level**: one copy in `desktop-plugins/pandora/`, visible
-in every profile. The **backend** (`/api/plugins/pandora/*`) is mounted per
-profile. A profile without the Pandora package answers
-`404 {"detail":"Plugin not found"}` and the chip shows the *"not available in
-this profile"* banner — that is exactly what it looks like when the app runs
-a named profile but the plugin was installed into the default home.
-
-Find the app's profile (desktop log line `gateway-route ... profile=<name>`), then
-install there:
+### 3. Full Plugin
 
 ```bash
-hermes -p <profile> plugins install 36North/Pandora-for-Hermes#pandora --yes-deps --enable
+hermes plugins install 36North/Pandora-for-Hermes#pandora --yes-deps --enable
+hermes pandora setup
+hermes pandora login
 ```
 
-or switch the app's active profile to the one that already has Pandora. The mpv
-binary is shared; the login session is per profile and self-heals from the
-profile's secret scope (a profile without a saved session re-logs in
-automatically on first use when the credentials are resolvable — see
-[Where things live](#where-things-live)). Confirm a profile really has it:
-
-```bash
-ls ~/.hermes/profiles/<profile>/plugins/pandora/plugin.yaml
-grep -A6 '^plugins:' ~/.hermes/profiles/<profile>/config.yaml   # enabled: … - pandora
-```
-
-Windows is the supported platform today: local playback drives mpv over a named
-pipe and needs `os.set_blocking` (Python 3.12+, which Hermes' bundled runtime
-satisfies). Casting needs `pychromecast` 14.x, declared in `pyproject.toml`, so
-the installer offers it.
+Same three commands, run for the profile the desktop app runs (see the note above). Then restart Hermes Desktop (or **Rescan** in Capabilities → Plugins) and enable the **Pandora** toggle in that panel — the chip appears in the status bar.
 
 ---
 
@@ -192,13 +123,8 @@ Everything functional works from a terminal: the agent tools, the `hermes pandor
 commands, local playback and Cast. The status-bar chip is the only desktop-only
 piece, and the plugin does not need it.
 
-```bash
-hermes plugins install 36North/Pandora-for-Hermes#pandora --yes-deps --enable
-hermes pandora setup
-hermes pandora login
-```
-
-Then talk to the agent (`hermes`), or query state directly:
+Install it per [CLI only, above](#2-cli-only). Then talk to the agent (`hermes`),
+or query state directly:
 
 ```bash
 hermes pandora status
