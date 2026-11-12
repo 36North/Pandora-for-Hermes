@@ -29,9 +29,13 @@
   script into memory before executing, so it keeps running even after the
   plugin tree (and this file) is deleted during the final step. Close Hermes
   Desktop before running (a running gateway keeps plugin files open; the CLI
-  parks those trees and the next start finishes the delete). If it was still
-  running, some files (a playing mpv.exe, an open diag.log) can survive; the
-  script reports them and is safe to re-run once Hermes is closed.
+  parks those trees and the next start finishes the delete). Note that closing
+  the Desktop window does not always stop the gateway, whose kill-on-close job
+  keeps the plugin's mpv alive — the script now stops that mpv itself (by its
+  path under plugin-data\pandora\bin) before deleting. If PANDORA_MPV_PATH
+  points at a different mpv, stop that player first. Anything still locked
+  (an open diag.log) is reported, and the script is safe to re-run once
+  Hermes is closed.
 #>
 param([switch]$Yes)
 
@@ -141,6 +145,20 @@ if (Test-Path -LiteralPath $managed) {
     Write-Host '  note: the HERMES_MANAGED_DIR user variable can stay; it is harmless when the folder is empty'
   }
 }
+
+# A gateway outliving the Desktop window keeps its kill-on-close job open, so
+# the plugin's mpv survives "close the app". Stop it first — matched by its
+# executable path in this plugin's data dir, so an unrelated mpv (e.g. a
+# PANDORA_MPV_PATH install) is spared — otherwise its locked exe/DLLs survive
+# the delete below.
+$pluginMpv = Join-Path $root 'plugin-data\pandora\bin\mpv.exe'
+$strayMpv = @(Get-CimInstance Win32_Process -Filter "Name='mpv.exe'" -ErrorAction SilentlyContinue |
+  Where-Object { $_.ExecutablePath -and ($_.ExecutablePath -ieq $pluginMpv) })
+foreach ($proc in $strayMpv) {
+  Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue
+  Write-Host "  stopped plugin mpv (pid $($proc.ProcessId))"
+}
+if ($strayMpv.Count -gt 0) { Start-Sleep -Milliseconds 500 }   # let the OS release the file locks
 
 # Best effort: a running Hermes (a playing mpv.exe, an open diag.log) locks
 # individual files, and Windows refuses to delete or even open them. Delete

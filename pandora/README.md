@@ -308,10 +308,12 @@ powershell -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\hermes\plugins\pando
 ```
 
 It asks for confirmation, backs up every file it edits (`.bak-<timestamp>`), and
-then uninstalls the plugin from every profile on the machine. If it ran while
-Hermes was still open, a playing mpv or an open log can survive the delete —
-the script lists those leftovers; close Hermes Desktop and re-run it (it is
-idempotent) to finish.
+then uninstalls the plugin from every profile on the machine. It also stops the
+plugin's own mpv first (closing the Desktop window does not always stop the
+gateway, whose kill-on-close job keeps mpv alive) — if `PANDORA_MPV_PATH`
+points at a different mpv, stop that player first. Anything still locked (an
+open log) is listed; close Hermes Desktop and re-run (it is idempotent) to
+finish.
 
 ## Configuration
 
