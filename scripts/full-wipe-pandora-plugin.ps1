@@ -29,6 +29,18 @@
 #>
 param([switch]$Yes)
 
+# Any terminating error is shown and the window waits, so a failure can never
+# look like "nothing happened". ($home is a read-only automatic variable in
+# PowerShell: never name a loop variable $home.)
+trap {
+  Write-Host ''
+  Write-Host ("ERROR: " + $_.Exception.Message) -ForegroundColor Red
+  Write-Host ("At: " + $_.InvocationInfo.PositionMessage) -ForegroundColor DarkYellow
+  Write-Host 'Nothing further was changed. Fix the cause and re-run.' -ForegroundColor Red
+  if ($Host.Name -eq 'ConsoleHost') { Read-Host 'Press Enter to close' }
+  exit 1
+}
+
 $ErrorActionPreference = 'Stop'
 
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -56,7 +68,7 @@ $legacy = Join-Path $HOME '.hermes'
 if ((Test-Path -LiteralPath $legacy) -and ($legacy -ne $root)) { $homes += $legacy }
 
 function Write-TextNoBom([string]$path, [string]$text) {
-  [System.IO.File]::WriteAllText($path, $text, (New-Object System.Text.UTF8Encoding($false)))
+  [System.IO.File]::WriteAllText($path, $text, [System.Text.UTF8Encoding]::new($false))
 }
 
 function Strip-EnvKeys([string]$path) {
@@ -90,12 +102,12 @@ function Strip-InstallRecord([string]$path) {
   Write-Host "  removed the pandora install record from $path"
 }
 
-foreach ($home in $homes) {
-  $label = if ($home -eq $root) { 'global' } else { Split-Path $home -Leaf }
+foreach ($h in $homes) {
+  $label = if ($h -eq $root) { 'global' } else { Split-Path $h -Leaf }
   Write-Host "[$label]"
-  Strip-ProviderState (Join-Path $home 'auth.json')
-  Strip-EnvKeys (Join-Path $home '.env')
-  Strip-InstallRecord (Join-Path $home 'plugins\.install-metadata.json')
+  Strip-ProviderState (Join-Path $h 'auth.json')
+  Strip-EnvKeys (Join-Path $h '.env')
+  Strip-InstallRecord (Join-Path $h 'plugins\.install-metadata.json')
 }
 
 # The managed env layer (all-profiles credentials); keep the file/var if it
@@ -130,8 +142,8 @@ Push-Location $root   # never hold a working directory inside a tree being remov
 try {
   if ($hermes) {
     & hermes plugins remove pandora 2>$null
-    foreach ($home in @($homes | Where-Object { $_ -ne $root -and $_ -ne $legacy })) {
-      & hermes -p (Split-Path $home -Leaf) plugins remove pandora 2>$null
+    foreach ($h in @($homes | Where-Object { $_ -ne $root -and $_ -ne $legacy })) {
+      & hermes -p (Split-Path $h -Leaf) plugins remove pandora 2>$null
     }
     Write-Host '  plugin removed from every home it was installed in'
   } else {
@@ -139,8 +151,8 @@ try {
   }
 } finally { Pop-Location }
 
-foreach ($home in $homes) {
-  $tree = Join-Path $home 'plugins\pandora'
+foreach ($h in $homes) {
+  $tree = Join-Path $h 'plugins\pandora'
   if (Test-Path -LiteralPath $tree) {
     try { Remove-Item -LiteralPath $tree -Recurse -Force; Write-Host "  removed leftover $tree" }
     catch { Write-Warning "could not remove $tree (close Hermes and re-run)" }
@@ -149,3 +161,4 @@ foreach ($home in $homes) {
 
 Write-Host ''
 Write-Host 'Done. Close and reopen Hermes Desktop; a reinstall now starts signed out.' -ForegroundColor Green
+if (-not $Yes -and $Host.Name -eq 'ConsoleHost') { Read-Host 'Press Enter to close' }
