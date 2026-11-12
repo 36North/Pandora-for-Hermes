@@ -67,7 +67,8 @@ the part the CLI does differently:
 | Desktop half | copied into `desktop-plugins/pandora/` by the app | copied on the next app start or **Rescan** |
 
 So a store install normally needs no profile juggling. The CLI form does, when
-your desktop app runs a named profile.
+your desktop app runs a named profile — see the note at the top of
+[Setup](#setup): give every step `-p <profile>`.
 
 ### Which profile the chip talks to
 
@@ -123,6 +124,13 @@ the installer offers it.
 
 ## Setup
 
+> **Desktop app on a named profile?** Prefix every command below with
+> `-p <profile>` (`hermes -p rob plugins install …`, `hermes -p rob pandora
+> setup`, `hermes -p rob pandora login`). Without it, every step lands in the
+> default (launch) profile — the code and the login exist there, but the app
+> never talks to it, and the chip reports the backend as "not installed in"
+> your profile.
+
 ### 1. Install the plugin
 
 **From the Hermes plugin store (desktop app):** open **Capabilities → Plugins**,
@@ -164,11 +172,19 @@ the managed env layer instead (see [Where things live](#where-things-live)).
 
 - **Hermes Desktop** — copies `desktop/plugin.js` into `desktop-plugins/pandora/`
   at startup (or on **Rescan**). If you installed from the *store* page, the app
-  does this itself; a CLI install needs the app restarted once.
-- `hermes gateway restart` — mounts the chip's backend route
-  (`/api/plugins/pandora/*`) at gateway startup, and loads any Python dependency
-  (`pychromecast`) installed during enable. The enable command tells you when this
-  is required.
+  does this itself; a CLI install needs the app restarted once (or a **Rescan**).
+  Copying the file is not enough to show the chip: the desktop half is an
+  opt-in toggle, so also **enable the Pandora entry in Capabilities → Plugins**
+  for the profile the app is running. A store install flips that switch for
+  you; if the chip is still missing after any install, that switch is the thing
+  to check.
+- **The gateway of the profile that has the plugin** — the backend route
+  (`/api/plugins/pandora/*`) is mounted at gateway startup, and any Python
+  dependency (`pychromecast`) installed during enable is loaded then. The
+  enable command tells you when this is required. Bare `hermes gateway restart`
+  restarts the *launch (default) profile's* gateway — if your desktop app runs
+  a named profile, restarting the app does it for you, or run
+  `hermes -p <profile> gateway restart`.
 
 ---
 
@@ -447,9 +463,12 @@ profile's backend loaded it. Check
 `profiles/<profile>/plugins/pandora/plugin.yaml` and the profile's
 `plugins.enabled`; a missing package or enable flag is the cause.
 
-**The chip does not appear after installing** — the app copies
-`desktop/plugin.js` into `desktop-plugins/pandora/` at startup or on **Rescan**.
-`hermes pandora setup` reminds you; a store install does the copy itself.
+**The chip does not appear after installing** — two things can be missing.
+The app copies `desktop/plugin.js` into `desktop-plugins/pandora/` at startup or
+on **Rescan** (a store install does the copy itself) — but the desktop half is
+an opt-in toggle, so the chip shows only once the **Pandora** entry is enabled
+in **Capabilities → Plugins** for the profile the app is running. Flip that
+switch and the chip appears live; no further restart needed.
 
 **`503 The Pandora agent plugin is not loaded in this process`** — the dashboard
 backend runs in the gateway, which v0.23+ isolates from plugin code. The plugin
