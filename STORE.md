@@ -63,6 +63,7 @@ category: tools
 docs_url: https://github.com/36North/Pandora-for-Hermes#readme
 version: "0.3.0"
 title: Pandora for Hermes
+requires_hermes: ">=0.21.6"
 image: https://raw.githubusercontent.com/36North/Pandora-for-Hermes/<sha>/assets/card.jpg
 screenshots: []
 readme: true
