@@ -62,6 +62,15 @@ hermes pandora login
 
 Same three commands, run for the profile the desktop app runs (see the note above). Then restart Hermes Desktop (or **Rescan** in Capabilities → Plugins) and enable the **Pandora** toggle in that panel — the chip appears in the status bar.
 
+### 4. Uninstall
+
+```bash
+hermes pandora logout      # delete the session and saved credentials
+hermes plugins remove pandora
+```
+
+Run them in this order (a store install uses the **trash** icon in Capabilities → Plugins instead of the `remove` command). A bare remove keeps your login and the mpv build; for a complete wipe of everything the plugin touched, close Hermes Desktop and run `scripts/full-wipe-pandora-plugin.ps1` — full steps in [Uninstall](#uninstall).
+
 ---
 
 ## Prerequisites
