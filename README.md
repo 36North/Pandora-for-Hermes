@@ -66,10 +66,10 @@ Same three commands, run for the profile the desktop app runs (see the note abov
 
 ```bash
 hermes pandora logout      # delete the session and saved credentials
-hermes plugins remove pandora
+hermes plugins remove pandora   # or the trash icon in Capabilities → Plugins
 ```
 
-Run them in this order (a store install uses the **trash** icon in Capabilities → Plugins instead of the `remove` command). A bare remove keeps your login and the mpv build; for a complete wipe of everything the plugin touched, close Hermes Desktop and run the bundled `scripts\full-wipe-pandora-plugin.ps1` (in the installed plugin folder) — full steps in [Uninstall](#uninstall).
+That keeps your login and the mpv build, so a reinstall starts signed in. For a complete wipe — credentials, mpv build, desktop half, and the plugin itself from every profile — close Hermes Desktop and run the bundled `scripts\full-wipe-pandora-plugin.ps1` from the installed plugin folder **while the plugin is still installed**: the script performs the uninstall itself, so run it instead of the two commands above (if you already uninstalled, get the script from this repository). Details: [Uninstall](#uninstall).
 
 ---
 
@@ -297,8 +297,10 @@ so reinstalling starts where you left off. To remove **everything** — the save
 session (`providers.pandora` in `auth.json`), the `PANDORA_*` values in `.env`
 and the managed env layer, `plugin-data\pandora` (mpv, ~120 MB) and the desktop
 half — close Hermes Desktop and run the full-wipe script that ships with the
-plugin from a plain PowerShell window (in the installed plugin folder —
-`%LOCALAPPDATA%\hermes\plugins\pandora\scripts\` for the default profile, or
+plugin **while the plugin is still installed** (it uninstalls the plugin from
+every profile itself — run it instead of the steps above, not after them).
+From a plain PowerShell window, pointing at the installed plugin folder
+(`%LOCALAPPDATA%\hermes\plugins\pandora\scripts\` for the default profile, or
 `profiles\<name>\plugins\pandora\scripts\` for a named one):
 
 ```powershell
