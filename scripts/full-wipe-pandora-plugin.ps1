@@ -61,11 +61,24 @@ if (-not $Yes) {
 $homes = @($root)
 $profilesDir = Join-Path $root 'profiles'
 if (Test-Path -LiteralPath $profilesDir) {
+  # Only real profile names: Hermes keeps tombstone folders such as ".deleted"
+  # here, and the CLI rejects them as profile names.
   Get-ChildItem -LiteralPath $profilesDir -Directory -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -match '^[a-z0-9][a-z0-9_-]{0,63}$' } |
     ForEach-Object { $homes += $_.FullName }
 }
 $legacy = Join-Path $HOME '.hermes'
 if ((Test-Path -LiteralPath $legacy) -and ($legacy -ne $root)) { $homes += $legacy }
+
+# Every folder that could hold a plugin tree, tombstones included: the final
+# fallback deletes leftovers there directly, without asking the CLI (which
+# rejects names like ".deleted").
+$everyDir = @($root)
+if (Test-Path -LiteralPath $profilesDir) {
+  $everyDir += @(Get-ChildItem -LiteralPath $profilesDir -Directory -ErrorAction SilentlyContinue |
+                    ForEach-Object { $_.FullName })
+}
+if ((Test-Path -LiteralPath $legacy) -and ($legacy -ne $root)) { $everyDir += $legacy }
 
 function Write-TextNoBom([string]$path, [string]$text) {
   [System.IO.File]::WriteAllText($path, $text, [System.Text.UTF8Encoding]::new($false))
@@ -115,7 +128,7 @@ foreach ($h in $homes) {
 $managed = Join-Path $root 'managed\.env'
 Strip-EnvKeys $managed
 if (Test-Path -LiteralPath $managed) {
-  $rest = @(Get-Content -LiteralPath $managed | Where-Object { $_ -match '\S' })
+  $rest = @(Get-Content -LiteralPath $managed | Where-Object { $_ -match '\S' -and $_ -notmatch '^\s*#' })
   if ($rest.Count -eq 0) {
     Remove-Item -LiteralPath $managed -Force
     Write-Host '  removed the now-empty managed env file'
@@ -137,21 +150,35 @@ foreach ($dir in @((Join-Path $root 'plugin-data\pandora'),
 
 # Uninstall the code from every home. The CLI is what removes the tree and the
 # install metadata together; a direct delete is the fallback if it is missing.
-$hermes = Get-Command hermes -ErrorAction SilentlyContinue
+$hermesExe = Get-Command hermes -ErrorAction SilentlyContinue
 Push-Location $root   # never hold a working directory inside a tree being removed
+$savedEap = $ErrorActionPreference
+$ErrorActionPreference = 'SilentlyContinue'   # a home without the plugin must not stop the run
 try {
-  if ($hermes) {
-    & hermes plugins remove pandora 2>$null
+  if ($hermesExe) {
+    $cliFailed = 0
+    & hermes plugins remove pandora 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) { $cliFailed++ }
     foreach ($h in @($homes | Where-Object { $_ -ne $root -and $_ -ne $legacy })) {
-      & hermes -p (Split-Path $h -Leaf) plugins remove pandora 2>$null
+      & hermes -p (Split-Path $h -Leaf) plugins remove pandora 2>&1 | Out-Null
+      if ($LASTEXITCODE -ne 0) { $cliFailed++ }
     }
-    Write-Host '  plugin removed from every home it was installed in'
+    if ($cliFailed -eq 0) {
+      Write-Host '  plugin removed from every home it was installed in'
+    } else {
+      Write-Warning ("  the CLI uninstalled what it could ($cliFailed home(s) reported an error, often 'not installed'); leftover trees are deleted below")
+    }
   } else {
     Write-Warning 'hermes is not on PATH - uninstall from the Desktop trash button instead'
   }
-} finally { Pop-Location }
+} catch {
+  Write-Warning "the CLI reported an error for one home; the fallback delete below still runs: $($_.Exception.Message)"
+} finally {
+  $ErrorActionPreference = $savedEap
+  Pop-Location
+}
 
-foreach ($h in $homes) {
+foreach ($h in $everyDir) {
   $tree = Join-Path $h 'plugins\pandora'
   if (Test-Path -LiteralPath $tree) {
     try { Remove-Item -LiteralPath $tree -Recurse -Force; Write-Host "  removed leftover $tree" }
@@ -162,3 +189,4 @@ foreach ($h in $homes) {
 Write-Host ''
 Write-Host 'Done. Close and reopen Hermes Desktop; a reinstall now starts signed out.' -ForegroundColor Green
 if (-not $Yes -and $Host.Name -eq 'ConsoleHost') { Read-Host 'Press Enter to close' }
+exit 0
