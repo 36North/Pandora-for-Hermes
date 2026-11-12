@@ -382,12 +382,12 @@ Uninstalling deliberately keeps your saved login and the downloaded mpv build,
 so reinstalling starts where you left off. To remove **everything** — the saved
 session (`providers.pandora` in `auth.json`), the `PANDORA_*` values in `.env`
 and the managed env layer, `plugin-data\pandora` (mpv, ~120 MB) and the desktop
-half — close Hermes Desktop and run [`scripts/full-wipe.ps1`](scripts/full-wipe.ps1)
+half — close Hermes Desktop and run [`scripts/full-wipe-pandora-plugin.ps1`](scripts/full-wipe-pandora-plugin.ps1)
 from a plain PowerShell window (download it from this repository first if you
 installed from the catalog):
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\full-wipe.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\full-wipe-pandora-plugin.ps1
 ```
 
 It asks for confirmation, backs up every file it edits (`.bak-<timestamp>`), and
