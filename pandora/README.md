@@ -86,7 +86,7 @@ hermes -p <profile> pandora logout      # delete the session and saved credentia
 hermes -p <profile> plugins remove pandora   # or the trash icon in Capabilities → Plugins
 ```
 
-That keeps your login and the mpv build, so a reinstall starts signed in. For a complete wipe — credentials, mpv build, desktop half, and the plugin itself from every profile — close Hermes Desktop and run `scripts\full-wipe-pandora-plugin.ps1` from this repository (it is not shipped inside the package, so it survives any uninstall): the script performs the uninstall itself, so run it instead of the two commands above. Details: [Uninstall](#uninstall).
+That keeps your login and the mpv build, so a reinstall starts signed in. For a complete wipe — credentials, mpv build, desktop half, and the plugin itself from every profile — close Hermes Desktop and run the full-wipe script shipped inside the plugin (`<profile>\plugins\pandora\scripts\full-wipe-pandora-plugin.ps1`): the script performs the uninstall itself, so run it instead of the two commands above. Note that `plugins remove` also deletes the shipped copy, so if you have already removed the plugin, fetch a fresh one from this repository first. Details: [Uninstall](#uninstall).
 
 ---
 
@@ -321,14 +321,17 @@ Uninstalling deliberately keeps your saved login and the downloaded mpv build,
 so reinstalling starts where you left off. To remove **everything** — the saved
 session (`providers.pandora` in `auth.json`), the `PANDORA_*` values in `.env`
 and the managed env layer, `plugin-data\pandora` (mpv, ~120 MB) and the desktop
-half — close Hermes Desktop and run the full-wipe script from this repository.
-It is deliberately **not** shipped inside the package, so it is still there
-after `plugins remove` (a copy inside the plugin tree would be deleted by the
-very uninstall it is needed for); it uninstalls the plugin from every profile
-itself, so run it instead of the steps above. From a plain PowerShell window:
+half — close Hermes Desktop and run the full-wipe script shipped inside the
+plugin: `<profile>\plugins\pandora\scripts\full-wipe-pandora-plugin.ps1` (the
+same relative path under any launch home). It uninstalls the plugin from every
+profile itself, so run it instead of the steps above. Note that `plugins
+remove` also deletes the shipped copy, so if you have already removed the
+plugin, download a fresh copy from this repository first. From a plain
+PowerShell window:
 
 ```powershell
-curl.exe -fsSL -o full-wipe-pandora-plugin.ps1 https://raw.githubusercontent.com/36North/Pandora-for-Hermes/main/scripts/full-wipe-pandora-plugin.ps1
+# only needed if the plugin was already removed:
+curl.exe -fsSL -o full-wipe-pandora-plugin.ps1 https://raw.githubusercontent.com/36North/Pandora-for-Hermes/main/pandora/scripts/full-wipe-pandora-plugin.ps1
 powershell -ExecutionPolicy Bypass -File .\full-wipe-pandora-plugin.ps1
 ```
 
@@ -342,9 +345,9 @@ points at a different mpv, stop that player first. Anything still locked (an
 open log) is listed; close Hermes Desktop and re-run (it is idempotent) to
 finish.
 
-**Already ran `plugins remove`?** Nothing is lost — the script lives in this
-repository, not the package, so download it as above and run it; it finishes
-the job (credentials, `plugin-data\pandora` with the mpv build, the desktop
+**Already ran `plugins remove`?** Nothing is lost — the shipped copy is gone,
+but the script can be downloaded from this repository again (as above) and run;
+it finishes the job (credentials, `plugin-data\pandora` with the mpv build, the desktop
 half, and any other profile's copy). To do it by hand instead, delete
 `%LOCALAPPDATA%\hermes\plugin-data\pandora` (stop a stray `mpv.exe` under
 `bin\` first if a file is locked) and
@@ -374,7 +377,7 @@ half, and any other profile's copy). To do it by hand instead, delete
 | `<launch home>/plugin-data/pandora/diag.log` | cast/audio diagnostics (JSON lines, rotated) |
 | `<launch home>/desktop-plugins/pandora/plugin.js` | the status-bar half, copied by the app |
 | `<launch home>/plugins/pandora/` | the installed plugin (and `dashboard/` backend) |
-| `scripts/full-wipe-pandora-plugin.ps1` (this repo) | full-uninstall script — deliberately not in the package, so it survives `plugins remove` |
+| `<launch home>/plugins/pandora/scripts/full-wipe-pandora-plugin.ps1` | full-uninstall script — shipped in the package; `plugins remove` deletes it, so re-download from the repository if already uninstalled (see Uninstall) |
 
 Credentials resolve per profile through Hermes's secret scope (`.env`, any
 external secret source, and the managed env layer). A profile without a saved

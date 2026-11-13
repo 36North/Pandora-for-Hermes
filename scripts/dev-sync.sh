@@ -56,7 +56,7 @@ sync_one() {
     [ -f "$f" ] || continue
     cp -f "$f" "$dst"/bin/
   done
-  for dir in dashboard desktop; do
+  for dir in dashboard desktop scripts; do
     if [ -d "$SRC/$dir" ]; then rm -rf "$dst/$dir"; cp -rf "$SRC/$dir" "$dst/$dir"; fi
   done
   rm -rf "$dst/dashboard/__pycache__"
