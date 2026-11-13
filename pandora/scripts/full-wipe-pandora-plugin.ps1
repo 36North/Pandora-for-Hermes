@@ -35,7 +35,10 @@
   path under plugin-data\pandora\bin) before deleting. If PANDORA_MPV_PATH
   points at a different mpv, stop that player first. Anything still locked
   (an open diag.log) is reported, and the script is safe to re-run once
-  Hermes is closed.
+  Hermes is closed. A pre-flight check warns loudly while the desktop app is
+  still running, because it re-provisions what the wipe deletes (re-copying
+  the desktop half, re-downloading mpv) — close the app first for a
+  deterministic result.
 #>
 param([switch]$Yes)
 
@@ -66,6 +69,19 @@ if (-not $Yes) {
   Write-Host "credentials, downloaded mpv build and diagnostics under $root." -ForegroundColor Yellow
   $answer = Read-Host 'Type WIPE to continue'
   if ($answer -ne 'WIPE') { Write-Host 'Aborted. Nothing was changed.'; return }
+}
+
+# A desktop app still running re-provisions what this wipe deletes: it
+# re-copies the desktop half and the running backend re-downloads the mpv
+# build (observed 2026-11-12 — both trees were back within two minutes).
+# Warn so the user can close the app and re-run instead of wondering why the
+# leftovers returned.
+$liveHermes = @(Get-Process -Name 'Hermes' -ErrorAction SilentlyContinue)
+if ($liveHermes.Count -gt 0) {
+  Write-Host "WARNING: Hermes Desktop is still running ($($liveHermes.Count) process(es))." -ForegroundColor Yellow
+  Write-Host '         It will re-copy the desktop half and re-download mpv as you delete' -ForegroundColor Yellow
+  Write-Host '         them. For a deterministic wipe, close the app first and re-run' -ForegroundColor Yellow
+  Write-Host '         (idempotent); a stopped gateway keeps any plugin tree it has loaded locked.' -ForegroundColor Yellow
 }
 
 $homes = @($root)

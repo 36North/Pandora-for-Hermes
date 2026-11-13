@@ -441,3 +441,12 @@ Pending (next actions, in order):
          the three locked files again.
     - Tests: 4 new in `tests/test_dashboard_shutdown.py` (teardown called,
       cache invalidated, 503 propagated, failure reported).
+    - Full wipe run 2026-11-12 while the desktop app was open: the mpv kill
+      worked (stopped pid 11712, `plugin-data\pandora` + `desktop-plugins`
+      deleted), but the running app re-provisioned within minutes (desktop
+      half re-copied at +4 s from the still-locked plugin tree, mpv build
+      re-downloaded at +2 min by the still-running backend), and the
+      leftover root-home gateway + its plugin host locked
+      `plugins\pandora`. Added a pre-flight warning when Hermes.exe is
+      still running; deterministic finish = close app → `hermes gateway stop`
+      → re-run.
