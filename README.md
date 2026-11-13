@@ -499,10 +499,12 @@ it does not copy or redistribute Pandora's copyrighted content, it uses the name
 only to identify compatibility, and it runs with the user's own credentials on
 their own machine. That describes the design; it is not legal advice.
 
-**mpv.** Local playback uses mpv, which is GPLv2+ and is redistributed as a
-separate portable archive from this repository's `mpv` release. Its license and
-third-party notices ship beside the binary and in `pandora/bin/`. The MIT license
-above covers this plugin, not mpv; mpv's source is available from its upstream
+**mpv.** Local playback uses mpv, which is GPLv2+. The portable build is
+downloaded from the official `mpv-player/mpv` release (`v0.42.0`, Windows
+x86_64) and verified against the SHA-256 pinned in the code before it is
+installed; the plugin never re-hosts the binary. Its license and third-party
+notices ship beside the binary and in `pandora/bin/`. The MIT license above
+covers this plugin, not mpv; mpv's source is available from its upstream
 project.
 
 **No warranty.** The software is provided "as is", without warranty of any kind,

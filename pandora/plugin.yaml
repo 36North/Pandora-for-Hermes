@@ -43,7 +43,7 @@ optional_env:
     prompt: "mpv executable path"
     password: false
   - name: PANDORA_MPV_URL
-    description: "Portable mpv zip used by `hermes pandora setup` and the automatic first-play download (default: the plugin's published release asset)"
+    description: "Portable mpv zip used by `hermes pandora setup` and the automatic first-play download (default: the official mpv-player/mpv v0.42.0 Windows build, SHA-256 pinned in code)"
     prompt: "mpv portable zip URL"
     password: false
   - name: PANDORA_MPV_SHA256
