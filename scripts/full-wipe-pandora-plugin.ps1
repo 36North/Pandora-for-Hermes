@@ -23,11 +23,13 @@
   Skip the confirmation prompt.
 
 .NOTES
-  Requires Windows PowerShell 5.1+. This script ships inside the plugin (its
-  scripts\ folder), so anyone who installed the plugin has it; run the copy
-  from the installed plugin folder. That is safe: PowerShell loads the whole
-  script into memory before executing, so it keeps running even after the
-  plugin tree (and this file) is deleted during the final step. Close Hermes
+  Requires Windows PowerShell 5.1+. The script lives at the repository root
+  (scripts/), not inside the plugin package, so it is still there after
+  `hermes plugins remove` — download it once and run it any time. (A copy kept
+  inside the plugin tree gets deleted by the very uninstall it is needed for,
+  which is why it moved.) Running it while the plugin is still installed is
+  safe: PowerShell loads the whole script into memory before executing, so it
+  keeps running while the plugin tree is deleted. Close Hermes
   Desktop before running (a running gateway keeps plugin files open; the CLI
   parks those trees and the next start finishes the delete). Note that closing
   the Desktop window does not always stop the gateway, whose kill-on-close job
