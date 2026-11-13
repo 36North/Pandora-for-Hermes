@@ -338,6 +338,12 @@ points at a different mpv, stop that player first. Anything still locked (an
 open log) is listed; close Hermes Desktop and re-run (it is idempotent) to
 finish.
 
+**Already ran `plugins remove`?** The script went with the package (it lives
+inside the plugin tree), and two shared leftovers remain — delete them by hand
+if no other profile has Pandora: `%LOCALAPPDATA%\hermes\plugin-data\pandora`
+(the mpv build; stop a stray `mpv.exe` under `bin\` first if a file is locked)
+and `%LOCALAPPDATA%\hermes\desktop-plugins\pandora` (the status-bar half).
+
 ## Configuration
 
 | Variable | Purpose |
