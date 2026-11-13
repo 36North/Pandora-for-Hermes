@@ -146,6 +146,8 @@ The chip is injected by the desktop plugin half and polls the backend every 5 s.
 The menu no longer shows which plan the account is on; it only shows a capability
 note when a Premium-only row is unavailable.
 
+![The Pandora chip in the Hermes status bar, menu open](https://raw.githubusercontent.com/36North/Pandora-for-Hermes/main/assets/chip.jpg)
+
 ---
 
 ## CLI-only use (no desktop app)
