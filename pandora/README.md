@@ -31,42 +31,59 @@ MIT licensed — see [LICENSE](LICENSE) and [Legal](#legal).
 
 Plugins install **per profile**: the agent tools and the chip's backend exist only in a profile where the plugin is enabled.
 
-> **Desktop app on a named profile?** Add `-p <profile>` to every command below, so the plugin lands in the profile the app runs.
+> **Specify the profile explicitly.** Add `-p <profile>` to every command
+> below — `<profile>` is the one your desktop app runs (shown in the app, and
+> in the chip's "backend not installed in profile '<profile>'" message if you
+> ever see it). On first launch the app auto-detects a profile and sticks
+> with it, so a bare install — which lands in the *default* profile — often
+> ends up in the wrong place. Running the default profile? The `-p` flag is
+> optional there.
 
 ### 1. Store
 
 Install **Pandora** from **Capabilities → Plugins** in Hermes Desktop. The app installs the plugin into the profile it is running and adds the status-bar chip immediately.
 
 ```bash
-hermes pandora setup     # optional: pre-fetch the SHA-256-verified mpv build (shared across profiles)
-hermes pandora login     # sign in to Pandora with your email + password
+hermes -p <profile> pandora setup   # optional: pre-fetch the SHA-256-verified mpv build (shared across profiles)
+hermes -p <profile> pandora login   # sign in to Pandora with your email + password
 ```
 
 ### 2. CLI only
 
 ```bash
-hermes plugins install 36North/Pandora-for-Hermes#pandora --yes-deps --enable
-hermes pandora setup
-hermes pandora login
+hermes -p <profile> plugins install 36North/Pandora-for-Hermes#pandora --yes-deps --enable
+hermes -p <profile> gateway restart   # if the installer says the gateway needs it
+hermes -p <profile> pandora setup
+hermes -p <profile> pandora login
+hermes -p <profile> tools enable pandora
 ```
 
-Install the plugin (with its `pychromecast` dependency) and mpv, then sign in to Pandora. The seven agent tools then work from the terminal and with the agent — no desktop app required (see [CLI-only use](#cli-only-use-no-desktop-app)).
+Install the plugin (with its `pychromecast` dependency), fetch mpv, sign in,
+then enable the toolset once. Restart the gateway only if the installer says
+so — until it happens the plugin's tools stay unloaded, and the seven agent
+tools then work from the terminal and with the agent, no desktop app required
+(see [CLI-only use](#cli-only-use-no-desktop-app)).
 
 ### 3. Full Plugin
 
 ```bash
-hermes plugins install 36North/Pandora-for-Hermes#pandora --yes-deps --enable
-hermes pandora setup
-hermes pandora login
+hermes -p <profile> plugins install 36North/Pandora-for-Hermes#pandora --yes-deps --enable
+hermes -p <profile> gateway restart   # if the installer says the gateway needs it
+hermes -p <profile> pandora setup
+hermes -p <profile> pandora login
+hermes -p <profile> tools enable pandora
 ```
 
-Same three commands, run for the profile the desktop app runs (see the note above). Then restart Hermes Desktop (or **Rescan** in Capabilities → Plugins) and enable the **Pandora** toggle in that panel — the chip appears in the status bar.
+The same five commands, run for the profile the desktop app runs (see the
+note above). Then restart Hermes Desktop (which reloads that profile's
+gateway) or **Rescan** in Capabilities → Plugins, and enable the **Pandora**
+toggle in that panel — the chip appears in the status bar.
 
 ### 4. Uninstall
 
 ```bash
-hermes pandora logout      # delete the session and saved credentials
-hermes plugins remove pandora   # or the trash icon in Capabilities → Plugins
+hermes -p <profile> pandora logout      # delete the session and saved credentials
+hermes -p <profile> plugins remove pandora   # or the trash icon in Capabilities → Plugins
 ```
 
 That keeps your login and the mpv build, so a reinstall starts signed in. For a complete wipe — credentials, mpv build, desktop half, and the plugin itself from every profile — close Hermes Desktop and run the bundled `scripts\full-wipe-pandora-plugin.ps1` from the installed plugin folder **while the plugin is still installed**: the script performs the uninstall itself, so run it instead of the two commands above (if you already uninstalled, get the script from this repository). Details: [Uninstall](#uninstall).
