@@ -11,6 +11,7 @@
     - PANDORA_* values    in each home's .env and in the managed env layer
     - plugin-data\pandora (the downloaded mpv build, ~120 MB, plus diag.log)
     - desktop-plugins\pandora (the status-bar half; app level)
+    - pandora entries   in each home's config.yaml (toolset/enable flags)
 
   Those leftovers are what make a reinstall start signed in and skip the mpv
   download. Run this script only when you want them gone too: switching Pandora
@@ -28,13 +29,13 @@
   needed, or to smoke-test the script after moving it.
 
 .NOTES
-  Requires Windows PowerShell 5.1+. The script lives at the repository root
-  (scripts/), not inside the plugin package, so it is still there after
-  `hermes plugins remove` — download it once and run it any time. (A copy kept
-  inside the plugin tree gets deleted by the very uninstall it is needed for,
-  which is why it moved.) Running it while the plugin is still installed is
-  safe: PowerShell loads the whole script into memory before executing, so it
-  keeps running while the plugin tree is deleted. Close Hermes
+  Requires Windows PowerShell 5.1+. The script ships inside the plugin package
+  (pandora\scripts\full-wipe-pandora-plugin.ps1), so an installed plugin carries
+  its own uninstaller. `hermes plugins remove` deletes that copy with the
+  plugin; in that case download it again from the repository (the README's
+  Uninstall section has the URL) and run that copy. Running it while the plugin
+  is still installed is safe: PowerShell loads the whole script into memory
+  before executing, so it keeps running while the plugin tree is deleted. Close Hermes
   Desktop before running (a running gateway keeps plugin files open; the CLI
   parks those trees and the next start finishes the delete). Note that closing
   the Desktop window does not always stop the gateway, whose kill-on-close job
@@ -154,6 +155,31 @@ function Strip-InstallRecord([string]$path) {
   Write-Host "  removed the pandora install record from $path"
 }
 
+function Strip-ConfigRefs([string]$path) {
+  # Post-uninstall scrub: `plugins remove` deletes the tree and install record
+  # but leaves the plugin's registered flags in config.yaml
+  # (known_plugin_toolsets / plugins / tools lists), so a fresh install would
+  # start from stale registrations. Only list items inside those three
+  # top-level sections are removed - a profile, provider or tool anywhere else
+  # in the config is never touched. Block-style YAML only (what Hermes writes);
+  # flow-style [a, b] lists are left alone.
+  if (-not (Test-Path -LiteralPath $path)) { return }
+  $lines = @(Get-Content -LiteralPath $path)
+  $scope = ''; $removed = 0
+  $kept  = New-Object System.Collections.Generic.List[string]
+  foreach ($line in $lines) {
+    if ($line -match '^([A-Za-z_][A-Za-z0-9_-]*):\s*(#.*)?$') { $scope = $Matches[1] }
+    $inScope = $scope -in @('known_plugin_toolsets', 'plugins', 'tools')
+    if ($inScope -and $line -match '^\s*-\s*("pandora"|pandora)\s*(#.*)?$') { $removed++; continue }
+    $kept.Add($line)
+  }
+  if ($removed -eq 0) { return }
+  if ($DryRun) { Write-Host ("  would scrub {0} pandora reference(s) from {1}" -f $removed, $path); return }
+  Copy-Item -LiteralPath $path "$path.bak-$stamp"
+  Write-TextNoBom $path (($kept -join "`r`n") + "`r`n")
+  Write-Host ("  scrubbed {0} pandora reference(s) from {1}" -f $removed, $path)
+}
+
 foreach ($h in $homes) {
   $label = if ($h -eq $root) { 'global' } else { Split-Path $h -Leaf }
   Write-Host "[$label]"
@@ -235,17 +261,20 @@ try {
   if ($DryRun) {
     Write-Host '  would uninstall the plugin from every home it is installed in'
   } elseif ($hermesExe) {
+    # Exit code 1 with "No plugin named ..." (or the older "not installed")
+    # just means that home never had the plugin: an expected no-op, not a
+    # failure. Only count real errors.
     $cliFailed = 0
-    & hermes plugins remove pandora 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) { $cliFailed++ }
+    $report = & hermes plugins remove pandora 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0 -and $report -notmatch 'No plugin named|not installed') { $cliFailed++ }
     foreach ($h in @($homes | Where-Object { $_ -ne $root -and $_ -ne $legacy })) {
-      & hermes -p (Split-Path $h -Leaf) plugins remove pandora 2>&1 | Out-Null
-      if ($LASTEXITCODE -ne 0) { $cliFailed++ }
+      $report = & hermes -p (Split-Path $h -Leaf) plugins remove pandora 2>&1 | Out-String
+      if ($LASTEXITCODE -ne 0 -and $report -notmatch 'No plugin named|not installed') { $cliFailed++ }
     }
     if ($cliFailed -eq 0) {
       Write-Host '  plugin removed from every home it was installed in'
     } else {
-      Write-Warning ("  the CLI uninstalled what it could ($cliFailed home(s) reported an error, often 'not installed'); leftover trees are deleted below")
+      Write-Warning ("  the CLI reported a real error for $cliFailed home(s); leftover trees are deleted below")
     }
   } else {
     Write-Warning 'hermes is not on PATH - uninstall from the Desktop trash button instead'
@@ -264,6 +293,13 @@ foreach ($h in $everyDir) {
     try { Remove-Item -LiteralPath $tree -Recurse -Force; Write-Host "  removed leftover $tree" }
     catch { Write-Warning "could not remove $tree (close Hermes and re-run)" }
   }
+}
+
+# Post-phase: scrub the config flags the CLI cannot remove, so a reinstall
+# starts from a clean registration state (observed 2026-11-13: a reinstall
+# re-added them and the wipe left them behind).
+foreach ($h in $everyDir) {
+  Strip-ConfigRefs (Join-Path $h 'config.yaml')
 }
 
 Write-Host ''
