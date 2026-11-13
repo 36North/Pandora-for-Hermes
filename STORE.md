@@ -54,7 +54,7 @@ Install from the plugin store (Capabilities → Plugins) or via the CLI (`hermes
 name: pandora
 repo: https://github.com/36North/Pandora-for-Hermes
 subdir: pandora
-sha: 1494e9de8de0b18c2f137c31bc486a264f529b9a   # pushed: wipe script ships in package; best-effort locked-file delete
+sha: 77bf6472b003557832cf7b928eafdbd942abf3e3   # pushed: -p profile rule, gateway/toolset steps, wipe pre-flight warning, chip screenshot
 description: >-
   Unofficial Pandora client for Hermes — your music, your desktop, your agents,
   all connected: stations, playback, thumbs, search, playlists, Cast, and seven
@@ -66,7 +66,7 @@ docs_url: https://github.com/36North/Pandora-for-Hermes#readme
 version: "0.3.0"
 title: Pandora for Hermes
 requires_hermes: ">=0.21.6"
-image: https://raw.githubusercontent.com/36North/Pandora-for-Hermes/1494e9de8de0b18c2f137c31bc486a264f529b9a/assets/card.jpg
+image: https://raw.githubusercontent.com/36North/Pandora-for-Hermes/77bf6472b003557832cf7b928eafdbd942abf3e3/assets/card.jpg
 screenshots: []
 readme: true
 platforms:
