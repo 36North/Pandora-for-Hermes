@@ -332,6 +332,8 @@ curl.exe -fsSL -o full-wipe-pandora-plugin.ps1 https://raw.githubusercontent.com
 powershell -ExecutionPolicy Bypass -File .\full-wipe-pandora-plugin.ps1
 ```
 
+Add `-DryRun` to see exactly what it would remove without changing anything.
+
 It asks for confirmation, backs up every file it edits (`.bak-<timestamp>`), and
 then uninstalls the plugin from every profile on the machine. It also stops the
 plugin's own mpv first (closing the Desktop window does not always stop the

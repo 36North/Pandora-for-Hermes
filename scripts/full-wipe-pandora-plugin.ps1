@@ -22,6 +22,11 @@
 .PARAMETER Yes
   Skip the confirmation prompt.
 
+.PARAMETER DryRun
+  Report what would be removed, then exit without touching anything: no backup
+  files, no stopped player, no deletions. Use it to see whether a wipe is even
+  needed, or to smoke-test the script after moving it.
+
 .NOTES
   Requires Windows PowerShell 5.1+. The script lives at the repository root
   (scripts/), not inside the plugin package, so it is still there after
@@ -42,7 +47,7 @@
   the desktop half, re-downloading mpv) — close the app first for a
   deterministic result.
 #>
-param([switch]$Yes)
+param([switch]$Yes, [switch]$DryRun)
 
 # Any terminating error is shown and the window waits, so a failure can never
 # look like "nothing happened". ($home is a read-only automatic variable in
@@ -66,7 +71,7 @@ if (-not (Test-Path -LiteralPath $root)) { throw "Hermes home not found: $root" 
 # bare `hermes` calls below mean the global profile, as they should here.
 Remove-Item Env:HERMES_HOME -ErrorAction SilentlyContinue
 
-if (-not $Yes) {
+if (-not $Yes -and -not $DryRun) {
   Write-Host "This uninstalls Pandora from Hermes and deletes its saved login," -ForegroundColor Yellow
   Write-Host "credentials, downloaded mpv build and diagnostics under $root." -ForegroundColor Yellow
   $answer = Read-Host 'Type WIPE to continue'
@@ -117,6 +122,10 @@ function Strip-EnvKeys([string]$path) {
   $lines = @(Get-Content -LiteralPath $path)
   $kept  = @($lines | Where-Object { $_ -notmatch '^\s*(export\s+)?PANDORA_' })
   if ($kept.Count -eq $lines.Count) { return }
+  if ($DryRun) {
+    Write-Host ("  would strip {0} PANDORA_* line(s) from {1}" -f ($lines.Count - $kept.Count), $path)
+    return
+  }
   Copy-Item -LiteralPath $path "$path.bak-$stamp"
   Write-TextNoBom $path (($kept -join "`r`n") + "`r`n")
   Write-Host ("  stripped {0} PANDORA_* line(s) from {1}" -f ($lines.Count - $kept.Count), $path)
@@ -127,6 +136,7 @@ function Strip-ProviderState([string]$path) {
   try { $json = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json } catch { return }
   if (-not $json.PSObject.Properties['providers']) { return }
   if (-not $json.providers.PSObject.Properties['pandora']) { return }
+  if ($DryRun) { Write-Host "  would remove providers.pandora from $path"; return }
   Copy-Item -LiteralPath $path "$path.bak-$stamp"
   $json.providers.PSObject.Properties.Remove('pandora')
   Write-TextNoBom $path ($json | ConvertTo-Json -Depth 100)
@@ -137,6 +147,7 @@ function Strip-InstallRecord([string]$path) {
   if (-not (Test-Path -LiteralPath $path)) { return }
   try { $json = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json } catch { return }
   if (-not $json.PSObject.Properties['pandora']) { return }
+  if ($DryRun) { Write-Host "  would remove the pandora install record from $path"; return }
   Copy-Item -LiteralPath $path "$path.bak-$stamp"
   $json.PSObject.Properties.Remove('pandora')
   Write-TextNoBom $path ($json | ConvertTo-Json -Depth 100)
@@ -158,8 +169,12 @@ Strip-EnvKeys $managed
 if (Test-Path -LiteralPath $managed) {
   $rest = @(Get-Content -LiteralPath $managed | Where-Object { $_ -match '\S' -and $_ -notmatch '^\s*#' })
   if ($rest.Count -eq 0) {
-    Remove-Item -LiteralPath $managed -Force
-    Write-Host '  removed the now-empty managed env file'
+    if ($DryRun) {
+      Write-Host '  would remove the now-empty managed env file'
+    } else {
+      Remove-Item -LiteralPath $managed -Force
+      Write-Host '  removed the now-empty managed env file'
+    }
     Write-Host '  note: the HERMES_MANAGED_DIR user variable can stay; it is harmless when the folder is empty'
   }
 }
@@ -173,10 +188,14 @@ $pluginMpv = Join-Path $root 'plugin-data\pandora\bin\mpv.exe'
 $strayMpv = @(Get-CimInstance Win32_Process -Filter "Name='mpv.exe'" -ErrorAction SilentlyContinue |
   Where-Object { $_.ExecutablePath -and ($_.ExecutablePath -ieq $pluginMpv) })
 foreach ($proc in $strayMpv) {
-  Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue
-  Write-Host "  stopped plugin mpv (pid $($proc.ProcessId))"
+  if ($DryRun) {
+    Write-Host "  would stop plugin mpv (pid $($proc.ProcessId))"
+  } else {
+    Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue
+    Write-Host "  stopped plugin mpv (pid $($proc.ProcessId))"
+  }
 }
-if ($strayMpv.Count -gt 0) { Start-Sleep -Milliseconds 500 }   # let the OS release the file locks
+if (-not $DryRun -and $strayMpv.Count -gt 0) { Start-Sleep -Milliseconds 500 }   # let the OS release the file locks
 
 # Best effort: a running Hermes (a playing mpv.exe, an open diag.log) locks
 # individual files, and Windows refuses to delete or even open them. Delete
@@ -187,6 +206,7 @@ $leftovers = @()
 foreach ($dir in @((Join-Path $root 'plugin-data\pandora'),
                    (Join-Path $root 'desktop-plugins\pandora'))) {
   if (-not (Test-Path -LiteralPath $dir)) { continue }
+  if ($DryRun) { Write-Host "  would delete $dir"; continue }
   $items = @(Get-ChildItem -LiteralPath $dir -Recurse -ErrorAction SilentlyContinue |
              Sort-Object { $_.FullName.Length } -Descending)
   foreach ($item in $items) {
@@ -212,7 +232,9 @@ Push-Location $root   # never hold a working directory inside a tree being remov
 $savedEap = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'   # a home without the plugin must not stop the run
 try {
-  if ($hermesExe) {
+  if ($DryRun) {
+    Write-Host '  would uninstall the plugin from every home it is installed in'
+  } elseif ($hermesExe) {
     $cliFailed = 0
     & hermes plugins remove pandora 2>&1 | Out-Null
     if ($LASTEXITCODE -ne 0) { $cliFailed++ }
@@ -238,12 +260,17 @@ try {
 foreach ($h in $everyDir) {
   $tree = Join-Path $h 'plugins\pandora'
   if (Test-Path -LiteralPath $tree) {
+    if ($DryRun) { Write-Host "  would remove leftover $tree"; continue }
     try { Remove-Item -LiteralPath $tree -Recurse -Force; Write-Host "  removed leftover $tree" }
     catch { Write-Warning "could not remove $tree (close Hermes and re-run)" }
   }
 }
 
 Write-Host ''
-Write-Host 'Done. Close and reopen Hermes Desktop; a reinstall now starts signed out.' -ForegroundColor Green
-if (-not $Yes -and $Host.Name -eq 'ConsoleHost') { Read-Host 'Press Enter to close' }
+if ($DryRun) {
+  Write-Host 'Dry run: nothing was changed.' -ForegroundColor Yellow
+} else {
+  Write-Host 'Done. Close and reopen Hermes Desktop; a reinstall now starts signed out.' -ForegroundColor Green
+}
+if (-not $Yes -and -not $DryRun -and $Host.Name -eq 'ConsoleHost') { Read-Host 'Press Enter to close' }
 exit 0
