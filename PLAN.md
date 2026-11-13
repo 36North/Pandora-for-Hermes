@@ -450,3 +450,7 @@ Pending (next actions, in order):
       `plugins\pandora`. Added a pre-flight warning when Hermes.exe is
       still running; deterministic finish = close app → `hermes gateway stop`
       → re-run.
+    - 2026-11-13 — wipe script moved to the repo root `scripts/`: the catalog
+      playbook forbids a full-wipe utility inside `subdir` (a packaged copy is
+      deleted by the uninstall it exists for, which a tester hit). Docs now
+      download the raw file from `main`; the script is location-independent.
